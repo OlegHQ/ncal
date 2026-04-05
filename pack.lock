@@ -27,3 +27,15 @@ path = "plugins/rust-dev"
 commit = "6c31800b66d9da2138009fbf518ec4b98f92bc0c"
 cache_key = "3389c3061b2b7324acc996159caf9b242c3a66811672816a8921ca74bdad0cae"
 name = ""
+
+[[packages]]
+module = "github.com/oleghq/agent-configs/plugins/simplifier"
+direct = true
+kind = "plugin"
+url = "https://github.com/oleghq/agent-configs/tree/d5901af663dda6ff5d0a07b8b1367507adcc6db5/plugins/simplifier"
+owner = "oleghq"
+repo = "agent-configs"
+path = "plugins/simplifier"
+commit = "d5901af663dda6ff5d0a07b8b1367507adcc6db5"
+cache_key = "b0cdb793bc05e85179e74541828542ddcd67c50409291b72707c38a5b9d566cc"
+name = ""

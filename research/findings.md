@@ -25,6 +25,9 @@
 ### Notes
 - `build/main/config.json` includes `incrementalSyncInterval: 30` (seconds, likely) and minimum web/Electron version gates — confidence: **confirmed** for file contents; behavioral meaning **likely**.
 - Most calendar API traffic is expected from the **embedded web app** (`calendar.notion.so`), not from the thin Electron `main` shell; next RE pass should target network patterns in that origin (or captured traffic with consent), not only `main.js`.
+- **API contract (static RE, pass 1):** see `research/notion-calendar-api-contract-spec.md` — documents `calendar-api.notion.so` auth (`/v1/auth`, bearer token, `refreshNotionSession`), headers, POST JSON RPC for **82** `/v2/*` operations, `GET /v1/status`, web bundle `cron-web@1.132.0`.
+- **API contract (static RE, pass 2 — full field schemas):** Fetched web SPA entry bundle (`cron-f93efa5c11a98b9e9e62.js`, 591KB) + 28 lazy-loaded webpack chunks (~8.5MB total) from `calendar.notion.so/assets/`. Extracted per-endpoint request/response field schemas for all **85** `/v2/*` RPCs (3 new: `deleteFile`, `getUploadFileURL`, `getTranscriptionRecordAncestorChainForEvent`). Recovered Zod validator schemas for Event, Attendee, User, Contact, Hold, and multiple request types. Full spec updated in `research/notion-calendar-api-contract-spec.md`.
+- **API contract (live traffic, pass 3 — ground truth):** mitmproxy capture of desktop app v1.132.0 startup + sync flow. Confirmed and enriched: Account object (with Capabilities, provider-polymorphic `info`), Calendar object (Google vs iCloud field differences), HoldGroup (with TimeRange, conflictFreeResources), ConferenceData (EntryPoint, ConferenceSolution), NotionWorkspace, NotionUser, UserPreferences (with CalendarListState, device prefs), Contact (full Google People API shape). Captures stored in `research/artifacts/captures/json/` (gitignored, tokens redacted).
 
 ## Template
 

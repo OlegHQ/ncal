@@ -1,0 +1,18 @@
+[package]
+name = "ncal-api"
+version.workspace = true
+edition.workspace = true
+description = "HTTP client for Notion Calendar calendar-api.notion.so (internal RPC surface)"
+
+[dependencies]
+chrono = { version = "0.4", features = ["serde"] }
+keyring = "3"
+reqwest = { version = "0.12", default-features = false, features = ["json", "gzip", "rustls-tls"] }
+rusty-leveldb = "1.0"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tempfile = "3"
+thiserror = "2"
+tokio = { version = "1", features = ["sync"] }
+tracing = "0.1"
+url = "2"
