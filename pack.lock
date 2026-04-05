@@ -1,0 +1,29 @@
+lockfile_version = 2
+
+[meta]
+name = "notion-calendar-cli"
+version = "0.0.1"
+
+[[packages]]
+module = "github.com/anthropics/skills/skills/skill-creator"
+direct = true
+kind = "skill"
+url = "https://github.com/anthropics/skills/tree/98669c11ca63e9c81c11501e1437e5c47b556621/skills/skill-creator"
+owner = "anthropics"
+repo = "skills"
+path = "skills/skill-creator"
+commit = "98669c11ca63e9c81c11501e1437e5c47b556621"
+cache_key = "88310e0439693e305a5d49a5b4ac8c9feab246dc7e8ee5e791c0b6fa6a1a4b40"
+name = ""
+
+[[packages]]
+module = "github.com/oleghq/agent-configs/plugins/rust-dev"
+direct = true
+kind = "plugin"
+url = "https://github.com/oleghq/agent-configs/tree/6c31800b66d9da2138009fbf518ec4b98f92bc0c/plugins/rust-dev"
+owner = "oleghq"
+repo = "agent-configs"
+path = "plugins/rust-dev"
+commit = "6c31800b66d9da2138009fbf518ec4b98f92bc0c"
+cache_key = "3389c3061b2b7324acc996159caf9b242c3a66811672816a8921ca74bdad0cae"
+name = ""
