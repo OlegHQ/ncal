@@ -1,7 +1,9 @@
 mod auth;
 mod calendars;
 mod contacts;
+pub(crate) mod context;
 mod events;
+mod holds;
 mod user;
 
 use std::path::Path;
@@ -10,8 +12,9 @@ use clap::Subcommand;
 use serde::{Deserialize, Serialize};
 
 use ncal_api::endpoints::{incremental_sync, IncrementalSyncRequest, SyncTokenInput};
-use ncal_api::types::SyncToken;
+use ncal_api::types::{IncrementalSyncResponse, SyncToken};
 
+use crate::cache::{self, CacheFile};
 use crate::config::AppConfig;
 use crate::output::{hint, print_json};
 use crate::Cli;
@@ -50,6 +53,32 @@ fn write_tokens(path: &Path, tokens: &[SyncToken]) -> Result<(), CliError> {
     std::fs::write(path, serde_json::to_string_pretty(&file)?).map_err(CliError::Io)
 }
 
+/// Run an incremental sync: reads tokens from cache or tokens file, calls the API,
+/// writes updated tokens and cache. Returns the sync response.
+pub(crate) async fn do_sync(
+    config: &AppConfig,
+    client: &ncal_api::client::NotionCalendarClient,
+) -> Result<IncrementalSyncResponse, CliError> {
+    // Prefer sync tokens from the cache, fall back to the tokens file.
+    let tokens = cache::read_cache(config)
+        .map(|c| c.sync_tokens.into_iter().map(token_to_input).collect())
+        .unwrap_or_else(|| read_tokens(&config.tokens_file()).unwrap_or_default());
+
+    let req = IncrementalSyncRequest { sync_tokens: tokens, metadata: None };
+    let resp = incremental_sync(client, &req).await.map_err(CliError::Api)?;
+
+    // Write tokens file (backward compat) and cache.
+    write_tokens(&config.tokens_file(), &resp.sync_tokens)?;
+    let cache_data = CacheFile {
+        updated_at: chrono::Utc::now().timestamp_millis(),
+        sync_tokens: resp.sync_tokens.clone(),
+        calendars: resp.calendars.clone(),
+        events: resp.events.clone(),
+    };
+    cache::write_cache(config, &cache_data)?;
+    Ok(resp)
+}
+
 #[derive(Subcommand, Debug)]
 pub enum Command {
     /// Authenticate with Notion Calendar.
@@ -63,6 +92,10 @@ pub enum Command {
     /// List calendars and color palettes.
     #[command(subcommand)]
     Calendars(calendars::CalCmd),
+
+    /// Manage scheduling holds (availability blocks and scheduling links).
+    #[command(subcommand)]
+    Holds(holds::HoldsCmd),
 
     /// Fetch incremental changes since last sync.
     Sync {
@@ -91,17 +124,23 @@ pub async fn run_command(cli: &Cli, config: &AppConfig) -> Result<(), CliError> 
         Command::Auth(c) => auth::run(cli, config, c).await,
         Command::Events(c) => events::run(cli, config, c).await,
         Command::Calendars(c) => calendars::run(cli, config, c).await,
+        Command::Holds(c) => holds::run(cli, config, c).await,
         Command::Sync { tokens_file } => {
-            let path = tokens_file.as_deref()
-                .map(Path::to_path_buf)
-                .unwrap_or_else(|| config.tokens_file());
-            let tokens = read_tokens(&path)?;
-            let creds = auth::resolve_credentials(config)?;
-            let client = auth::build_client(config, creds)?;
-            let req = IncrementalSyncRequest { sync_tokens: tokens, metadata: None };
-            let resp = incremental_sync(&client, &req).await.map_err(CliError::Api)?;
-            write_tokens(&path, &resp.sync_tokens)?;
-            eprintln!("Wrote {} sync token(s) to {}.", resp.sync_tokens.len(), path.display());
+            let client = context::authenticated_client(config)?;
+            if let Some(path) = tokens_file.as_deref() {
+                // Explicit tokens file: use legacy path (no cache).
+                let tokens = read_tokens(path)?;
+                let req = IncrementalSyncRequest { sync_tokens: tokens, metadata: None };
+                let resp = incremental_sync(&client, &req).await.map_err(CliError::Api)?;
+                write_tokens(path, &resp.sync_tokens)?;
+                eprintln!("Wrote {} sync token(s) to {}.", resp.sync_tokens.len(), path.display());
+                return print_json(cli, &resp);
+            }
+            let resp = do_sync(config, &client).await?;
+            eprintln!(
+                "Synced: {} calendar(s), {} event(s), {} token(s).",
+                resp.calendars.len(), resp.events.len(), resp.sync_tokens.len(),
+            );
             print_json(cli, &resp)
         }
         Command::Whoami => user::whoami(cli, config).await,

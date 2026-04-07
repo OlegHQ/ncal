@@ -1,4 +1,5 @@
-use ncal_api::types::{Account, Calendar, Contact, Event, EventDateTime, Provider};
+use chrono::Datelike;
+use ncal_api::types::{Account, Calendar, Contact, Event, EventDateTime, HoldGroup};
 use serde::Serialize;
 
 use crate::Cli;
@@ -130,7 +131,9 @@ pub fn print_events(cli: &Cli, events: &[Event]) -> Result<(), CliError> {
     if cli.json {
         return print_json(cli, &events);
     }
-    let rows: Vec<Vec<String>> = events
+    let mut sorted: Vec<&Event> = events.iter().collect();
+    sorted.sort_by_key(|e| event_sort_key(e));
+    let rows: Vec<Vec<String>> = sorted
         .iter()
         .map(|e| {
             vec![
@@ -191,6 +194,65 @@ pub fn print_contacts(cli: &Cli, contacts: &[Contact]) -> Result<(), CliError> {
     Ok(())
 }
 
+pub fn print_holds(cli: &Cli, holds: &[HoldGroup]) -> Result<(), CliError> {
+    if cli.json {
+        return print_json(cli, &holds);
+    }
+    let rows: Vec<Vec<String>> = holds
+        .iter()
+        .map(|h| {
+            vec![
+                h.title.clone().unwrap_or_default(),
+                h.alias.clone().unwrap_or_default(),
+                h.duration.map(|d| format!("{d}m")).unwrap_or_default(),
+                h.status.clone().unwrap_or_default(),
+                h.scheduling_link.clone().unwrap_or_default(),
+                h.id.clone(),
+            ]
+        })
+        .collect();
+    print_table(&["TITLE", "ALIAS", "DUR", "STATUS", "LINK", "ID"], &rows);
+    Ok(())
+}
+
+pub fn print_hold_detail(cli: &Cli, hold: &HoldGroup) -> Result<(), CliError> {
+    if cli.json {
+        return print_json(cli, hold);
+    }
+    let mut pairs = vec![
+        ("ID", hold.id.clone()),
+        ("Title", hold.title.clone().unwrap_or_default()),
+        ("Alias", hold.alias.clone().unwrap_or_default()),
+        ("Type", hold.hold_type.clone().unwrap_or_default()),
+        ("Status", hold.status.clone().unwrap_or_default()),
+        ("Duration", hold.duration.map(|d| format!("{d} min")).unwrap_or_default()),
+        ("Timezone", hold.time_zone.clone().unwrap_or_default()),
+    ];
+    if let Some(link) = &hold.scheduling_link {
+        pairs.push(("Link", link.clone()));
+    }
+    if let Some(desc) = &hold.description {
+        pairs.push(("Description", desc.clone()));
+    }
+    if let Some(ranges) = &hold.time_ranges {
+        for (i, r) in ranges.iter().enumerate() {
+            let label = if i == 0 { "Time ranges" } else { "" };
+            let start = r.start_date.as_deref().unwrap_or("?");
+            let end = r.end_date.as_deref().unwrap_or("?");
+            pairs.push((label, format!("{start} — {end}")));
+        }
+    }
+    if let Some(acct) = &hold.google_account_id {
+        pairs.push(("Account", acct.clone()));
+    }
+    if let Some(cal) = &hold.google_calendar_id {
+        pairs.push(("Calendar", cal.clone()));
+    }
+    let refs: Vec<(&str, String)> = pairs.into_iter().collect();
+    print_kv(&refs);
+    Ok(())
+}
+
 pub fn print_user(cli: &Cli, user: &ncal_api::types::User) -> Result<(), CliError> {
     if cli.json {
         return print_json(cli, user);
@@ -215,10 +277,25 @@ pub fn fmt_datetime(edt: &Option<EventDateTime>) -> String {
         Some(dt) => {
             if let Some(d) = &dt.date_time {
                 if let Ok(parsed) = chrono::DateTime::parse_from_rfc3339(d) {
-                    return parsed.format("%b %d, %H:%M").to_string();
+                    let now = chrono::Utc::now();
+                    let fmt = if parsed.year() != now.year() {
+                        "%b %d %Y, %H:%M"
+                    } else {
+                        "%b %d, %H:%M"
+                    };
+                    return parsed.format(fmt).to_string();
                 }
                 d.clone()
             } else if let Some(d) = &dt.date {
+                if let Ok(parsed) = chrono::NaiveDate::parse_from_str(d, "%Y-%m-%d") {
+                    let now = chrono::Utc::now().date_naive();
+                    let fmt = if parsed.year() != now.year() {
+                        "%b %d %Y"
+                    } else {
+                        "%b %d"
+                    };
+                    return format!("{} (all day)", parsed.format(fmt));
+                }
                 format!("{d} (all day)")
             } else {
                 "-".into()
@@ -227,14 +304,23 @@ pub fn fmt_datetime(edt: &Option<EventDateTime>) -> String {
     }
 }
 
-pub fn parse_provider(s: &str) -> Result<Provider, CliError> {
-    match s.to_ascii_lowercase().as_str() {
-        "google" => Ok(Provider::Google),
-        "notion" => Ok(Provider::Notion),
-        "icloud" => Ok(Provider::Icloud),
-        "outlook" => Ok(Provider::Outlook),
-        _ => Err(CliError::Usage(format!(
-            "unknown provider {s:?} (expected google|notion|icloud|outlook)"
-        ))),
+/// Extract a sortable epoch-millis key from an event's start time.
+pub fn event_sort_key(event: &Event) -> i64 {
+    match &event.start {
+        Some(dt) => {
+            if let Some(d) = &dt.date_time {
+                chrono::DateTime::parse_from_rfc3339(d)
+                    .map(|p| p.timestamp_millis())
+                    .unwrap_or(i64::MAX)
+            } else if let Some(d) = &dt.date {
+                chrono::NaiveDate::parse_from_str(d, "%Y-%m-%d")
+                    .map(|p| p.and_hms_opt(0, 0, 0).unwrap().and_utc().timestamp_millis())
+                    .unwrap_or(i64::MAX)
+            } else {
+                i64::MAX
+            }
+        }
+        None => i64::MAX,
     }
 }
+

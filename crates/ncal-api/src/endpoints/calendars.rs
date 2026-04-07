@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::client::NotionCalendarClient;
 use crate::error::ApiError;
-use crate::types::{Calendar, Provider};
+use crate::types::{Calendar, Provider, ProviderError};
 
 #[derive(Debug, Serialize, Clone)]
 pub struct GetCalendarListsRequest {
@@ -24,18 +24,10 @@ pub struct CalendarListOk {
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct CalendarListErr {
-    #[serde(default)]
-    pub provider: Option<String>,
-    pub error_message: String,
-}
-
-#[derive(Debug, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum CalendarListResult {
     Ok(CalendarListOk),
-    Err(CalendarListErr),
+    Err(ProviderError),
 }
 
 pub async fn get_calendar_lists(

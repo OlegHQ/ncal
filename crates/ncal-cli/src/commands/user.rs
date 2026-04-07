@@ -2,7 +2,7 @@ use clap::Subcommand;
 
 use ncal_api::endpoints::{get_user, get_user_preferences, remove_account, update_primary_account};
 
-use super::auth::{build_client, resolve_credentials};
+use super::context::authenticated_client;
 use crate::config::AppConfig;
 use crate::output::{hint, print_accounts, print_json, print_user};
 use crate::Cli;
@@ -31,7 +31,7 @@ pub enum PreferencesCmd {
 }
 
 pub async fn whoami(cli: &Cli, config: &AppConfig) -> Result<(), CliError> {
-    let client = build_client(config, resolve_credentials(config)?)?;
+    let client = authenticated_client(config)?;
     let user = get_user(&client).await.map_err(CliError::Api)?;
     print_user(cli, &user)?;
     if !cli.json {
@@ -45,7 +45,7 @@ pub async fn whoami(cli: &Cli, config: &AppConfig) -> Result<(), CliError> {
 }
 
 pub async fn accounts(cli: &Cli, config: &AppConfig, cmd: &AccountsCmd) -> Result<(), CliError> {
-    let client = build_client(config, resolve_credentials(config)?)?;
+    let client = authenticated_client(config)?;
     match cmd {
         AccountsCmd::List => {
             let accounts = get_user(&client)
@@ -82,7 +82,7 @@ pub async fn accounts(cli: &Cli, config: &AppConfig, cmd: &AccountsCmd) -> Resul
 }
 
 pub async fn preferences(cli: &Cli, config: &AppConfig, cmd: &PreferencesCmd) -> Result<(), CliError> {
-    let client = build_client(config, resolve_credentials(config)?)?;
+    let client = authenticated_client(config)?;
     match cmd {
         PreferencesCmd::Get => print_json(cli, &get_user_preferences(&client).await.map_err(CliError::Api)?),
     }

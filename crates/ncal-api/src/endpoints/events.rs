@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::client::NotionCalendarClient;
 use crate::error::ApiError;
-use crate::types::{Event, Provider, SendUpdates};
+use crate::types::{Event, Provider, ProviderError, SendUpdates};
 
 #[derive(Debug, Serialize)]
 pub struct GetEventsRequest {
@@ -45,17 +45,10 @@ pub struct GetEventsOk {
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct GetEventsErr {
-    pub provider: String,
-    pub error_message: String,
-}
-
-#[derive(Debug, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum GetEventsResult {
     Ok(GetEventsOk),
-    Err(GetEventsErr),
+    Err(ProviderError),
 }
 
 pub async fn get_events(

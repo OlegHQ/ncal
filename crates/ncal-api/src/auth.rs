@@ -79,14 +79,6 @@ pub struct KeychainSource {
     pub service: String,
 }
 
-impl KeychainSource {
-    pub fn default_service() -> Self {
-        Self {
-            service: "notion-calendar-cli".into(),
-        }
-    }
-}
-
 impl CredentialSource for KeychainSource {
     fn name(&self) -> &'static str {
         "keychain"

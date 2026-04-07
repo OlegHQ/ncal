@@ -12,6 +12,8 @@ pub struct AppConfig {
     pub defaults: DefaultsSection,
     #[serde(default)]
     pub sync: SyncSection,
+    #[serde(default)]
+    pub cache: CacheSection,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -52,6 +54,34 @@ pub struct SyncSection {
     pub tokens_file: PathBuf,
     #[serde(default = "default_sync_interval")]
     pub interval: u64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CacheSection {
+    #[serde(default = "default_cache_file")]
+    pub file: PathBuf,
+    /// Maximum age in seconds before the cache is considered stale (default: 300).
+    #[serde(default = "default_cache_max_age")]
+    pub max_age: u64,
+}
+
+fn default_cache_file() -> PathBuf {
+    dirs()
+        .map(|d| d.data_dir().join("cache.json"))
+        .unwrap_or_else(|| PathBuf::from("cache.json"))
+}
+
+fn default_cache_max_age() -> u64 {
+    300
+}
+
+impl Default for CacheSection {
+    fn default() -> Self {
+        Self {
+            file: default_cache_file(),
+            max_age: default_cache_max_age(),
+        }
+    }
 }
 
 fn default_sync_tokens_file() -> PathBuf {
@@ -98,5 +128,13 @@ impl AppConfig {
 
     pub fn tokens_file(&self) -> PathBuf {
         self.sync.tokens_file.clone()
+    }
+
+    pub fn cache_file(&self) -> PathBuf {
+        self.cache.file.clone()
+    }
+
+    pub fn cache_max_age(&self) -> u64 {
+        self.cache.max_age
     }
 }

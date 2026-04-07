@@ -22,6 +22,28 @@ impl std::fmt::Display for Provider {
     }
 }
 
+impl std::str::FromStr for Provider {
+    type Err = String;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_ascii_lowercase().as_str() {
+            "google" => Ok(Self::Google),
+            "notion" => Ok(Self::Notion),
+            "icloud" => Ok(Self::Icloud),
+            "outlook" => Ok(Self::Outlook),
+            _ => Err(format!("unknown provider {s:?} (expected google|notion|icloud|outlook)")),
+        }
+    }
+}
+
+/// Per-provider error returned by batch endpoints (getEvents, getCalendarLists, etc.).
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProviderError {
+    #[serde(default)]
+    pub provider: Option<String>,
+    pub error_message: String,
+}
+
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum SendUpdates {
@@ -39,7 +61,7 @@ pub enum RecurringUpdate {
     AllFollowing,
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub enum EventStatus {
     Confirmed,

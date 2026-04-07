@@ -1,13 +1,13 @@
 use clap::Subcommand;
 
 use ncal_api::endpoints::{
-    get_calendar_lists, get_colors, CalendarListQuery, CalendarListResult, GetCalendarListsRequest,
+    get_calendar_lists, get_colors, CalendarListQuery, GetCalendarListsRequest,
 };
 use ncal_api::types::User;
 
-use super::auth::{build_client, resolve_credentials};
+use super::context::{authenticated_client, flatten_calendar_results, parse_provider};
 use crate::config::AppConfig;
-use crate::output::{hint, parse_provider, print_calendars, print_json};
+use crate::output::{hint, print_calendars, print_json};
 use crate::Cli;
 use crate::CliError;
 
@@ -27,9 +27,9 @@ pub enum CalCmd {
 }
 
 pub async fn run(cli: &Cli, config: &AppConfig, cmd: &CalCmd) -> Result<(), CliError> {
+    let client = authenticated_client(config)?;
     match cmd {
         CalCmd::List { account, provider } => {
-            let client = build_client(config, resolve_credentials(config)?)?;
             let user: User = ncal_api::endpoints::get_user(&client).await.map_err(CliError::Api)?;
             let accounts = user.accounts.as_ref().ok_or_else(|| {
                 CliError::Usage("no accounts connected; add one in the Notion Calendar app".into())
@@ -61,24 +61,15 @@ pub async fn run(cli: &Cli, config: &AppConfig, cmd: &CalCmd) -> Result<(), CliE
                 return print_json(cli, &results);
             }
 
-            let mut calendars = Vec::new();
-            for r in results {
-                match r {
-                    CalendarListResult::Ok(ok) => calendars.extend(ok.calendars),
-                    CalendarListResult::Err(err) => eprintln!("warning: {}", err.error_message),
-                }
-            }
+            let calendars = flatten_calendar_results(results);
             print_calendars(cli, &calendars)?;
-            if !cli.json {
-                hint(&[
-                    "ncal events list --calendar <ID>  — list events in a calendar",
-                    "ncal calendars colors             — show the color palette",
-                ]);
-            }
+            hint(&[
+                "ncal events list --calendar <ID>  — list events in a calendar",
+                "ncal calendars colors             — show the color palette",
+            ]);
             Ok(())
         }
         CalCmd::Colors => {
-            let client = build_client(config, resolve_credentials(config)?)?;
             print_json(cli, &get_colors(&client).await.map_err(CliError::Api)?)
         }
     }

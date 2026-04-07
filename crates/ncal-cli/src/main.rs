@@ -1,5 +1,6 @@
 #![allow(clippy::result_large_err)]
 
+mod cache;
 mod commands;
 mod config;
 mod output;
