@@ -1,0 +1,15 @@
+#!/bin/sh
+set -eu
+
+CARGO=${CARGO:-cargo}
+
+echo "pre-commit: cargo fmt --all"
+"$CARGO" fmt --all
+
+echo "pre-commit: cargo clippy --workspace --all-targets --fix --allow-dirty --allow-staged -- -D warnings"
+"$CARGO" clippy --workspace --all-targets --fix --allow-dirty --allow-staged -- -D warnings
+
+if ! git diff --quiet; then
+  echo "pre-commit: auto-fixes changed files; review and stage them, then commit again." >&2
+  exit 1
+fi

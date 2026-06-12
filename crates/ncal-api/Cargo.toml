@@ -3,6 +3,12 @@ name = "ncal-api"
 version.workspace = true
 edition.workspace = true
 description = "HTTP client for Notion Calendar calendar-api.notion.so (internal RPC surface)"
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+readme = "../../README.md"
+keywords.workspace = true
+categories.workspace = true
 
 [dependencies]
 chrono = { version = "0.4", features = ["serde"] }

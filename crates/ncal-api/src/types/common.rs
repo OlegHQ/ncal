@@ -30,7 +30,9 @@ impl std::str::FromStr for Provider {
             "notion" => Ok(Self::Notion),
             "icloud" => Ok(Self::Icloud),
             "outlook" => Ok(Self::Outlook),
-            _ => Err(format!("unknown provider {s:?} (expected google|notion|icloud|outlook)")),
+            _ => Err(format!(
+                "unknown provider {s:?} (expected google|notion|icloud|outlook)"
+            )),
         }
     }
 }

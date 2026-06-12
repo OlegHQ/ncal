@@ -52,17 +52,29 @@ pub enum AuthError {
     LevelDb { path: String, reason: String },
 
     #[error("keychain error ({operation}): {reason}")]
-    Keychain { operation: &'static str, reason: String },
+    Keychain {
+        operation: &'static str,
+        reason: String,
+    },
 
     #[error("invalid credential payload from {origin}: {reason}")]
-    InvalidCredentials { origin: &'static str, reason: String },
+    InvalidCredentials {
+        origin: &'static str,
+        reason: String,
+    },
 
     #[error("API error during auth: {0}")]
     Api(#[from] ApiError),
 
     #[error("I/O error reading {path}: {source}")]
-    Io { path: String, source: std::io::Error },
+    Io {
+        path: String,
+        source: std::io::Error,
+    },
 
     #[error("cannot parse {context} as JSON: {source}")]
-    Json { context: String, source: serde_json::Error },
+    Json {
+        context: String,
+        source: serde_json::Error,
+    },
 }

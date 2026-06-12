@@ -25,7 +25,11 @@ pub fn parse_time_ms(label: &str, s: &str) -> Result<i64, CliError> {
     }
     chrono::DateTime::parse_from_rfc3339(s)
         .map(|d| d.timestamp_millis())
-        .map_err(|_| CliError::Usage(format!("--{label}: expected epoch millis or RFC3339, got {s:?}")))
+        .map_err(|_| {
+            CliError::Usage(format!(
+                "--{label}: expected epoch millis or RFC3339, got {s:?}"
+            ))
+        })
 }
 
 /// Extract successful calendars from batch results, logging errors to stderr.
@@ -52,7 +56,10 @@ pub async fn resolve_context(
 ) -> Result<(String, String, Provider), CliError> {
     let account_hint = account.or(config.defaults.account.as_deref());
     let (account_id, resolved_provider) = resolve_account(client, account_hint).await?;
-    let prov = provider.map(parse_provider).transpose()?.unwrap_or(resolved_provider);
+    let prov = provider
+        .map(parse_provider)
+        .transpose()?
+        .unwrap_or(resolved_provider);
     let calendar_id = match calendar.or(config.defaults.calendar.as_deref()) {
         Some(c) => c.to_string(),
         None => auto_resolve_calendar(client, &account_id, prov).await?,
@@ -70,9 +77,15 @@ async fn resolve_account(
     if let Some(q) = hint {
         let q_lower = q.to_ascii_lowercase();
         if let Some(found) = accounts.iter().find(|a| {
-            a.id == q || a.email.as_deref().is_some_and(|e| e.to_ascii_lowercase() == q_lower)
+            a.id == q
+                || a.email
+                    .as_deref()
+                    .is_some_and(|e| e.to_ascii_lowercase() == q_lower)
         }) {
-            return Ok((found.id.clone(), found.provider_name.unwrap_or(Provider::Google)));
+            return Ok((
+                found.id.clone(),
+                found.provider_name.unwrap_or(Provider::Google),
+            ));
         }
         return Err(CliError::Usage(format!(
             "no account matching {:?}; available accounts:\n{}",
@@ -131,9 +144,7 @@ pub async fn build_all_account_queries(
     }
     Ok(calendars
         .into_iter()
-        .filter_map(|c| {
-            Some((c.account_id?, c.id, c.provider?))
-        })
+        .filter_map(|c| Some((c.account_id?, c.id, c.provider?)))
         .collect())
 }
 
@@ -163,7 +174,9 @@ async fn auto_resolve_calendar(
             account_id: account_id.to_string(),
         }],
     };
-    let results = get_calendar_lists(client, &req).await.map_err(CliError::Api)?;
+    let results = get_calendar_lists(client, &req)
+        .await
+        .map_err(CliError::Api)?;
     let calendars = flatten_calendar_results(results);
 
     if let Some(primary) = calendars.iter().find(|c| c.primary == Some(true)) {
@@ -175,7 +188,9 @@ async fn auto_resolve_calendar(
     }
 
     match calendars.as_slice() {
-        [] => Err(CliError::Usage("no calendars found for this account".into())),
+        [] => Err(CliError::Usage(
+            "no calendars found for this account".into(),
+        )),
         [one] => {
             eprintln!(
                 "auto: using calendar {:?}",
@@ -190,7 +205,11 @@ async fn auto_resolve_calendar(
                     "  --calendar {}  # {}{}\n",
                     c.id,
                     c.summary.as_deref().unwrap_or(""),
-                    if c.primary == Some(true) { " (primary)" } else { "" },
+                    if c.primary == Some(true) {
+                        " (primary)"
+                    } else {
+                        ""
+                    },
                 ));
             }
             msg.push_str("\nor set defaults.calendar in your config file");

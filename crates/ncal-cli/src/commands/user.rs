@@ -63,7 +63,9 @@ pub async fn accounts(cli: &Cli, config: &AppConfig, cmd: &AccountsCmd) -> Resul
             Ok(())
         }
         AccountsCmd::SetPrimary { id } => {
-            let resp = update_primary_account(&client, id).await.map_err(CliError::Api)?;
+            let resp = update_primary_account(&client, id)
+                .await
+                .map_err(CliError::Api)?;
             if cli.json {
                 return print_json(cli, &resp);
             }
@@ -81,9 +83,16 @@ pub async fn accounts(cli: &Cli, config: &AppConfig, cmd: &AccountsCmd) -> Resul
     }
 }
 
-pub async fn preferences(cli: &Cli, config: &AppConfig, cmd: &PreferencesCmd) -> Result<(), CliError> {
+pub async fn preferences(
+    cli: &Cli,
+    config: &AppConfig,
+    cmd: &PreferencesCmd,
+) -> Result<(), CliError> {
     let client = authenticated_client(config)?;
     match cmd {
-        PreferencesCmd::Get => print_json(cli, &get_user_preferences(&client).await.map_err(CliError::Api)?),
+        PreferencesCmd::Get => print_json(
+            cli,
+            &get_user_preferences(&client).await.map_err(CliError::Api)?,
+        ),
     }
 }

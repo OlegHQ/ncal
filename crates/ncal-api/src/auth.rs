@@ -30,14 +30,8 @@ impl TryFrom<User> for Credentials {
                 origin: "API response",
                 reason: "missing or empty accessToken field".into(),
             })?;
-        let refresh_token = user
-            .refresh_token
-            .clone()
-            .unwrap_or_default();
-        let access_token_expires_at = user
-            .access_token_expires_at
-            .clone()
-            .unwrap_or_default();
+        let refresh_token = user.refresh_token.clone().unwrap_or_default();
+        let access_token_expires_at = user.access_token_expires_at.clone().unwrap_or_default();
         Ok(Credentials {
             user_id: user.id,
             access_token,
@@ -85,11 +79,12 @@ impl CredentialSource for KeychainSource {
     }
 
     fn obtain(&self) -> Result<Credentials, AuthError> {
-        let entry = keyring::Entry::new(&self.service, "default")
-            .map_err(|e| AuthError::Keychain { operation: "open", reason: e.to_string() })?;
-        let json = entry
-            .get_password()
-            .map_err(|_| AuthError::NoCredentials)?;
+        let entry =
+            keyring::Entry::new(&self.service, "default").map_err(|e| AuthError::Keychain {
+                operation: "open",
+                reason: e.to_string(),
+            })?;
+        let json = entry.get_password().map_err(|_| AuthError::NoCredentials)?;
         serde_json::from_str(&json).map_err(|e| AuthError::Json {
             context: format!("keychain entry for service {:?}", self.service),
             source: e,
@@ -106,7 +101,8 @@ impl DesktopAppSource {
     pub fn macos_default() -> Self {
         let home = std::env::var("HOME").unwrap_or_default();
         Self {
-            app_support_dir: PathBuf::from(home).join("Library/Application Support/Notion Calendar"),
+            app_support_dir: PathBuf::from(home)
+                .join("Library/Application Support/Notion Calendar"),
         }
     }
 
@@ -130,8 +126,7 @@ impl DesktopAppSource {
     }
 }
 
-const LEVELDB_KEY_SUFFIX: &[u8] =
-    b"_https://calendar.notion.so\x00\x01user.auth.currentUser";
+const LEVELDB_KEY_SUFFIX: &[u8] = b"_https://calendar.notion.so\x00\x01user.auth.currentUser";
 
 impl CredentialSource for DesktopAppSource {
     fn name(&self) -> &'static str {
@@ -139,9 +134,7 @@ impl CredentialSource for DesktopAppSource {
     }
 
     fn obtain(&self) -> Result<Credentials, AuthError> {
-        let db_path = self
-            .app_support_dir
-            .join("Local Storage/leveldb");
+        let db_path = self.app_support_dir.join("Local Storage/leveldb");
         if !db_path.is_dir() {
             return Err(AuthError::NoCredentials);
         }
@@ -154,21 +147,19 @@ impl CredentialSource for DesktopAppSource {
         let lock = tmp.path().join("LOCK");
         let _ = fs::remove_file(&lock);
 
-        let mut db = rusty_leveldb::DB::open(
-            tmp.path(),
-            rusty_leveldb::Options::default(),
-        )
-        .map_err(|e| AuthError::LevelDb {
-            path: db_path.display().to_string(),
-            reason: e.to_string(),
-        })?;
+        let mut db = rusty_leveldb::DB::open(tmp.path(), rusty_leveldb::Options::default())
+            .map_err(|e| AuthError::LevelDb {
+                path: db_path.display().to_string(),
+                reason: e.to_string(),
+            })?;
 
         let key = LEVELDB_KEY_SUFFIX.to_vec();
         let value = db.get(&key).ok_or(AuthError::NoCredentials)?;
 
         // Chromium LocalStorage LevelDB values carry a 1-byte type prefix (0x01 = UTF-16 string
         // stored as UTF-8). Strip it before parsing JSON.
-        let json_bytes = value.iter()
+        let json_bytes = value
+            .iter()
             .position(|&b| b == b'{')
             .map(|pos| &value[pos..])
             .unwrap_or(&value);
@@ -192,7 +183,10 @@ impl CredentialSource for DesktopAppSource {
 }
 
 fn copy_leveldb_tree(src: &Path, dst: &Path) -> Result<(), AuthError> {
-    let io_err = |e| AuthError::Io { path: src.display().to_string(), source: e };
+    let io_err = |e| AuthError::Io {
+        path: src.display().to_string(),
+        source: e,
+    };
     fs::create_dir_all(dst).map_err(io_err)?;
     for entry in fs::read_dir(src).map_err(io_err)? {
         let entry = entry.map_err(io_err)?;
@@ -223,23 +217,31 @@ pub fn resolve_credentials(sources: &[&dyn CredentialSource]) -> Result<Credenti
 }
 
 pub fn store_credentials(service: &str, creds: &Credentials) -> Result<(), AuthError> {
-    let entry =
-        keyring::Entry::new(service, "default").map_err(|e| AuthError::Keychain { operation: "open", reason: e.to_string() })?;
+    let entry = keyring::Entry::new(service, "default").map_err(|e| AuthError::Keychain {
+        operation: "open",
+        reason: e.to_string(),
+    })?;
     let json = serde_json::to_string(creds).map_err(|e| AuthError::Json {
         context: "serializing credentials for keychain".into(),
         source: e,
     })?;
-    entry
-        .set_password(&json)
-        .map_err(|e| AuthError::Keychain { operation: "store", reason: e.to_string() })?;
+    entry.set_password(&json).map_err(|e| AuthError::Keychain {
+        operation: "store",
+        reason: e.to_string(),
+    })?;
     Ok(())
 }
 
 pub fn delete_credentials(service: &str) -> Result<(), AuthError> {
-    let entry =
-        keyring::Entry::new(service, "default").map_err(|e| AuthError::Keychain { operation: "open", reason: e.to_string() })?;
+    let entry = keyring::Entry::new(service, "default").map_err(|e| AuthError::Keychain {
+        operation: "open",
+        reason: e.to_string(),
+    })?;
     match entry.delete_credential() {
         Ok(()) | Err(keyring::Error::NoEntry) => Ok(()),
-        Err(e) => Err(AuthError::Keychain { operation: "delete", reason: e.to_string() }),
+        Err(e) => Err(AuthError::Keychain {
+            operation: "delete",
+            reason: e.to_string(),
+        }),
     }
 }

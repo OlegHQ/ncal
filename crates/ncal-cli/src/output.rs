@@ -98,7 +98,11 @@ pub fn print_accounts(cli: &Cli, accounts: &[Account]) -> Result<(), CliError> {
                 a.provider_name.map(|p| p.to_string()).unwrap_or_default(),
                 a.email.clone().unwrap_or_default(),
                 a.display_name.clone().unwrap_or_default(),
-                if a.primary == Some(true) { "*".into() } else { String::new() },
+                if a.primary == Some(true) {
+                    "*".into()
+                } else {
+                    String::new()
+                },
                 a.id.clone(),
             ]
         })
@@ -118,7 +122,11 @@ pub fn print_calendars(cli: &Cli, calendars: &[Calendar]) -> Result<(), CliError
                 c.summary.clone().unwrap_or_else(|| c.id.clone()),
                 c.provider.map(|p| p.to_string()).unwrap_or_default(),
                 c.access_role.clone().unwrap_or_default(),
-                if c.primary == Some(true) { "*".into() } else { String::new() },
+                if c.primary == Some(true) {
+                    "*".into()
+                } else {
+                    String::new()
+                },
                 c.id.clone(),
             ]
         })
@@ -155,10 +163,16 @@ pub fn print_event_detail(cli: &Cli, event: &Event) -> Result<(), CliError> {
     }
     let mut pairs = vec![
         ("ID", event.id.clone()),
-        ("Summary", event.summary.clone().unwrap_or_else(|| "(no title)".into())),
+        (
+            "Summary",
+            event.summary.clone().unwrap_or_else(|| "(no title)".into()),
+        ),
         ("Start", fmt_datetime(&event.start)),
         ("End", fmt_datetime(&event.end)),
-        ("Status", event.status.map(|s| s.to_string()).unwrap_or_default()),
+        (
+            "Status",
+            event.status.map(|s| s.to_string()).unwrap_or_default(),
+        ),
     ];
     if let Some(loc) = &event.location {
         pairs.push(("Location", loc.clone()));
@@ -225,7 +239,12 @@ pub fn print_hold_detail(cli: &Cli, hold: &HoldGroup) -> Result<(), CliError> {
         ("Alias", hold.alias.clone().unwrap_or_default()),
         ("Type", hold.hold_type.clone().unwrap_or_default()),
         ("Status", hold.status.clone().unwrap_or_default()),
-        ("Duration", hold.duration.map(|d| format!("{d} min")).unwrap_or_default()),
+        (
+            "Duration",
+            hold.duration
+                .map(|d| format!("{d} min"))
+                .unwrap_or_default(),
+        ),
         ("Timezone", hold.time_zone.clone().unwrap_or_default()),
     ];
     if let Some(link) = &hold.scheduling_link {
@@ -323,4 +342,3 @@ pub fn event_sort_key(event: &Event) -> i64 {
         None => i64::MAX,
     }
 }
-

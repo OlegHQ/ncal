@@ -43,7 +43,6 @@ impl ClientConfig {
                 .unwrap_or_else(|| "en-US".into()),
         })
     }
-
 }
 
 /// Main API client. Clone-friendly (`Arc` internals). Facade over HTTP + auth + retry.
@@ -214,7 +213,10 @@ impl NotionCalendarClient {
             .header("X-Client-Type", "cli")
             .header("X-Client-OS", std::env::consts::OS)
             .header("X-TimeZone", &self.config.timezone)
-            .header("X-Notion-Authenticated", if bearer.is_some() { "true" } else { "false" })
+            .header(
+                "X-Notion-Authenticated",
+                if bearer.is_some() { "true" } else { "false" },
+            )
             .json(params);
 
         if let Some(token) = bearer {
@@ -297,9 +299,10 @@ impl NotionCalendarClientBuilder {
     }
 
     pub fn build(self) -> Result<NotionCalendarClient, ApiError> {
-        let config = Arc::new(self.config.unwrap_or_else(|| {
-            ClientConfig::production_defaults().expect("valid default URL")
-        }));
+        let config =
+            Arc::new(self.config.unwrap_or_else(|| {
+                ClientConfig::production_defaults().expect("valid default URL")
+            }));
         let creds = self.creds.ok_or_else(|| {
             ApiError::Config("NotionCalendarClientBuilder: missing credentials".into())
         })?;

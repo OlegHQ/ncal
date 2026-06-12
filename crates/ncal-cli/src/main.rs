@@ -111,11 +111,14 @@ async fn main() -> ExitCode {
         Err(e) => {
             let code = exit_code_for(&e);
             if cli.json {
-                let _ = serde_json::to_writer(std::io::stderr(), &serde_json::json!({
-                    "error": format!("{e}"),
-                    "code": code,
-                    "hint": error_hint(&e),
-                }));
+                let _ = serde_json::to_writer(
+                    std::io::stderr(),
+                    &serde_json::json!({
+                        "error": format!("{e}"),
+                        "code": code,
+                        "hint": error_hint(&e),
+                    }),
+                );
                 eprintln!();
             } else {
                 eprintln!("error: {e}");

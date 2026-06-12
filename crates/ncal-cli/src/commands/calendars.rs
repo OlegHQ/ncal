@@ -30,7 +30,9 @@ pub async fn run(cli: &Cli, config: &AppConfig, cmd: &CalCmd) -> Result<(), CliE
     let client = authenticated_client(config)?;
     match cmd {
         CalCmd::List { account, provider } => {
-            let user: User = ncal_api::endpoints::get_user(&client).await.map_err(CliError::Api)?;
+            let user: User = ncal_api::endpoints::get_user(&client)
+                .await
+                .map_err(CliError::Api)?;
             let accounts = user.accounts.as_ref().ok_or_else(|| {
                 CliError::Usage("no accounts connected; add one in the Notion Calendar app".into())
             })?;
@@ -38,13 +40,22 @@ pub async fn run(cli: &Cli, config: &AppConfig, cmd: &CalCmd) -> Result<(), CliE
             let mut queries = Vec::new();
             for acct in accounts {
                 if let Some(f) = account.as_deref() {
-                    if acct.id != f { continue; }
+                    if acct.id != f {
+                        continue;
+                    }
                 }
                 let pn = acct.provider_name.ok_or_else(|| {
                     CliError::Usage(format!("account {} has no provider", acct.id))
                 })?;
-                let prov = provider.as_deref().map(parse_provider).transpose()?.unwrap_or(pn);
-                queries.push(CalendarListQuery { provider: prov, account_id: acct.id.clone() });
+                let prov = provider
+                    .as_deref()
+                    .map(parse_provider)
+                    .transpose()?
+                    .unwrap_or(pn);
+                queries.push(CalendarListQuery {
+                    provider: prov,
+                    account_id: acct.id.clone(),
+                });
             }
 
             if queries.is_empty() {
@@ -69,8 +80,6 @@ pub async fn run(cli: &Cli, config: &AppConfig, cmd: &CalCmd) -> Result<(), CliE
             ]);
             Ok(())
         }
-        CalCmd::Colors => {
-            print_json(cli, &get_colors(&client).await.map_err(CliError::Api)?)
-        }
+        CalCmd::Colors => print_json(cli, &get_colors(&client).await.map_err(CliError::Api)?),
     }
 }

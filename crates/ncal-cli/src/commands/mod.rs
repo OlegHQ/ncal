@@ -49,7 +49,9 @@ fn write_tokens(path: &Path, tokens: &[SyncToken]) -> Result<(), CliError> {
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent).map_err(CliError::Io)?;
     }
-    let file = SyncTokensFile { tokens: tokens.to_vec() };
+    let file = SyncTokensFile {
+        tokens: tokens.to_vec(),
+    };
     std::fs::write(path, serde_json::to_string_pretty(&file)?).map_err(CliError::Io)
 }
 
@@ -64,8 +66,13 @@ pub(crate) async fn do_sync(
         .map(|c| c.sync_tokens.into_iter().map(token_to_input).collect())
         .unwrap_or_else(|| read_tokens(&config.tokens_file()).unwrap_or_default());
 
-    let req = IncrementalSyncRequest { sync_tokens: tokens, metadata: None };
-    let resp = incremental_sync(client, &req).await.map_err(CliError::Api)?;
+    let req = IncrementalSyncRequest {
+        sync_tokens: tokens,
+        metadata: None,
+    };
+    let resp = incremental_sync(client, &req)
+        .await
+        .map_err(CliError::Api)?;
 
     // Write tokens file (backward compat) and cache.
     write_tokens(&config.tokens_file(), &resp.sync_tokens)?;
@@ -130,16 +137,27 @@ pub async fn run_command(cli: &Cli, config: &AppConfig) -> Result<(), CliError> 
             if let Some(path) = tokens_file.as_deref() {
                 // Explicit tokens file: use legacy path (no cache).
                 let tokens = read_tokens(path)?;
-                let req = IncrementalSyncRequest { sync_tokens: tokens, metadata: None };
-                let resp = incremental_sync(&client, &req).await.map_err(CliError::Api)?;
+                let req = IncrementalSyncRequest {
+                    sync_tokens: tokens,
+                    metadata: None,
+                };
+                let resp = incremental_sync(&client, &req)
+                    .await
+                    .map_err(CliError::Api)?;
                 write_tokens(path, &resp.sync_tokens)?;
-                eprintln!("Wrote {} sync token(s) to {}.", resp.sync_tokens.len(), path.display());
+                eprintln!(
+                    "Wrote {} sync token(s) to {}.",
+                    resp.sync_tokens.len(),
+                    path.display()
+                );
                 return print_json(cli, &resp);
             }
             let resp = do_sync(config, &client).await?;
             eprintln!(
                 "Synced: {} calendar(s), {} event(s), {} token(s).",
-                resp.calendars.len(), resp.events.len(), resp.sync_tokens.len(),
+                resp.calendars.len(),
+                resp.events.len(),
+                resp.sync_tokens.len(),
             );
             print_json(cli, &resp)
         }

@@ -6,10 +6,12 @@ mod holds;
 mod sync;
 mod user;
 
-pub use auth::{create_notion_session, get_notion_login_url, CreateNotionSessionRequest, LoginUrlResponse};
+pub use auth::{
+    create_notion_session, get_notion_login_url, CreateNotionSessionRequest, LoginUrlResponse,
+};
 pub use calendars::{
-    get_calendar_lists, get_colors, CalendarListQuery, CalendarListResult,
-    ColorsResponse, GetCalendarListsRequest,
+    get_calendar_lists, get_colors, CalendarListQuery, CalendarListResult, ColorsResponse,
+    GetCalendarListsRequest,
 };
 pub use contacts::get_contacts;
 pub use events::{
@@ -26,5 +28,6 @@ pub use holds::{
 };
 pub use sync::{incremental_sync, IncrementalSyncRequest, SyncTokenInput};
 pub use user::{
-    get_user, get_user_preferences, remove_account, update_primary_account, UpdatePrimaryAccountResponse,
+    get_user, get_user_preferences, remove_account, update_primary_account,
+    UpdatePrimaryAccountResponse,
 };

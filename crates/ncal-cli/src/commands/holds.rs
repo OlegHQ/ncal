@@ -8,7 +8,7 @@ use ncal_api::types::TimeRange;
 
 use super::context::authenticated_client;
 use crate::config::AppConfig;
-use crate::output::{hint, print_holds, print_hold_detail, print_json};
+use crate::output::{hint, print_hold_detail, print_holds, print_json};
 use crate::Cli;
 use crate::CliError;
 
@@ -71,8 +71,34 @@ pub async fn run(cli: &Cli, config: &AppConfig, cmd: &HoldsCmd) -> Result<(), Cl
     match cmd {
         HoldsCmd::List => list(cli, &client).await,
         HoldsCmd::Get { hold_id } => get(cli, &client, hold_id).await,
-        HoldsCmd::Create { title, alias, duration, timezone, account, calendar, hold_type, description, min_lead_time, max_lead_time } => {
-            create(cli, config, &client, title, alias, *duration, timezone.as_deref(), account, calendar, hold_type, description.as_deref(), *min_lead_time, *max_lead_time).await
+        HoldsCmd::Create {
+            title,
+            alias,
+            duration,
+            timezone,
+            account,
+            calendar,
+            hold_type,
+            description,
+            min_lead_time,
+            max_lead_time,
+        } => {
+            create(
+                cli,
+                config,
+                &client,
+                title,
+                alias,
+                *duration,
+                timezone.as_deref(),
+                account,
+                calendar,
+                hold_type,
+                description.as_deref(),
+                *min_lead_time,
+                *max_lead_time,
+            )
+            .await
         }
         HoldsCmd::Delete { hold_id } => delete(cli, &client, hold_id).await,
         HoldsCmd::CheckAlias { alias } => check_alias(cli, &client, alias).await,
@@ -93,11 +119,15 @@ async fn list(cli: &Cli, client: &ncal_api::client::NotionCalendarClient) -> Res
 }
 
 async fn get(
-    cli: &Cli, client: &ncal_api::client::NotionCalendarClient, hold_id: &str,
+    cli: &Cli,
+    client: &ncal_api::client::NotionCalendarClient,
+    hold_id: &str,
 ) -> Result<(), CliError> {
     let resp = get_holds(client).await.map_err(CliError::Api)?;
     let hold = resp.holds.iter().find(|h| h.id == hold_id).ok_or_else(|| {
-        CliError::Usage(format!("no hold with ID {hold_id:?}; use `ncal holds list` to see all"))
+        CliError::Usage(format!(
+            "no hold with ID {hold_id:?}; use `ncal holds list` to see all"
+        ))
     })?;
     print_hold_detail(cli, hold)?;
     if !cli.json {
@@ -111,10 +141,19 @@ async fn get(
 
 #[allow(clippy::too_many_arguments)]
 async fn create(
-    cli: &Cli, config: &AppConfig, client: &ncal_api::client::NotionCalendarClient,
-    title: &str, alias: &str, duration: u32, timezone: Option<&str>,
-    account: &str, calendar: &str, hold_type: &str,
-    description: Option<&str>, min_lead_time: Option<u64>, max_lead_time: Option<u64>,
+    cli: &Cli,
+    config: &AppConfig,
+    client: &ncal_api::client::NotionCalendarClient,
+    title: &str,
+    alias: &str,
+    duration: u32,
+    timezone: Option<&str>,
+    account: &str,
+    calendar: &str,
+    hold_type: &str,
+    description: Option<&str>,
+    min_lead_time: Option<u64>,
+    max_lead_time: Option<u64>,
 ) -> Result<(), CliError> {
     let tz = timezone
         .map(String::from)
@@ -143,7 +182,10 @@ async fn create(
     };
     let resp = create_hold(client, &req).await.map_err(CliError::Api)?;
     if cli.json {
-        return print_json(cli, &serde_json::json!({ "id": id, "success": resp.success }));
+        return print_json(
+            cli,
+            &serde_json::json!({ "id": id, "success": resp.success }),
+        );
     }
     eprintln!("Created hold {id}.");
     hint(&[
@@ -154,9 +196,13 @@ async fn create(
 }
 
 async fn delete(
-    cli: &Cli, client: &ncal_api::client::NotionCalendarClient, hold_id: &str,
+    cli: &Cli,
+    client: &ncal_api::client::NotionCalendarClient,
+    hold_id: &str,
 ) -> Result<(), CliError> {
-    let req = DeleteHoldRequest { hold_id: hold_id.to_string() };
+    let req = DeleteHoldRequest {
+        hold_id: hold_id.to_string(),
+    };
     let resp = delete_hold(client, &req).await.map_err(CliError::Api)?;
     if cli.json {
         return print_json(cli, &resp);
@@ -166,10 +212,16 @@ async fn delete(
 }
 
 async fn check_alias(
-    cli: &Cli, client: &ncal_api::client::NotionCalendarClient, alias: &str,
+    cli: &Cli,
+    client: &ncal_api::client::NotionCalendarClient,
+    alias: &str,
 ) -> Result<(), CliError> {
-    let req = CheckAliasRequest { alias: alias.to_string() };
-    let resp = get_hold_alias_available(client, &req).await.map_err(CliError::Api)?;
+    let req = CheckAliasRequest {
+        alias: alias.to_string(),
+    };
+    let resp = get_hold_alias_available(client, &req)
+        .await
+        .map_err(CliError::Api)?;
     if cli.json {
         return print_json(cli, &resp);
     }

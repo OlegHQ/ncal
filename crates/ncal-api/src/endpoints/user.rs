@@ -25,13 +25,15 @@ pub async fn update_primary_account(
     account_id: &str,
 ) -> Result<UpdatePrimaryAccountResponse, ApiError> {
     client
-        .rpc(
-            "updatePrimaryAccount",
-            &json!({ "accountId": account_id }),
-        )
+        .rpc("updatePrimaryAccount", &json!({ "accountId": account_id }))
         .await
 }
 
-pub async fn remove_account(client: &NotionCalendarClient, account_id: &str) -> Result<serde_json::Value, ApiError> {
-    client.rpc("removeAccount", &json!({ "accountId": account_id })).await
+pub async fn remove_account(
+    client: &NotionCalendarClient,
+    account_id: &str,
+) -> Result<serde_json::Value, ApiError> {
+    client
+        .rpc("removeAccount", &json!({ "accountId": account_id }))
+        .await
 }

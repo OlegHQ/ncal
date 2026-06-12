@@ -6,7 +6,9 @@ use ncal_api::auth::{
     KeychainSource,
 };
 use ncal_api::client::{ClientConfig, NotionCalendarClient, OnTokenRefresh};
-use ncal_api::endpoints::{create_notion_session, get_notion_login_url, CreateNotionSessionRequest};
+use ncal_api::endpoints::{
+    create_notion_session, get_notion_login_url, CreateNotionSessionRequest,
+};
 
 use crate::config::AppConfig;
 use crate::output::{hint, print_json, print_kv};
@@ -61,13 +63,18 @@ fn make_client_config(config: &AppConfig) -> Result<ClientConfig, CliError> {
 
 pub(crate) fn resolve_credentials(config: &AppConfig) -> Result<Credentials, CliError> {
     let env = EnvVarSource;
-    let keychain = KeychainSource { service: config.auth.keychain_service.clone() };
+    let keychain = KeychainSource {
+        service: config.auth.keychain_service.clone(),
+    };
     let desktop = DesktopAppSource::from_env_or_default();
     let chain: [&dyn CredentialSource; 3] = [&env, &keychain, &desktop];
     ncal_api::auth::resolve_credentials(&chain).map_err(CliError::Auth)
 }
 
-pub(crate) fn build_client(config: &AppConfig, creds: Credentials) -> Result<NotionCalendarClient, CliError> {
+pub(crate) fn build_client(
+    config: &AppConfig,
+    creds: Credentials,
+) -> Result<NotionCalendarClient, CliError> {
     let service = config.auth.keychain_service.clone();
     let on_refresh: OnTokenRefresh = Arc::new(move |c: &Credentials| {
         let _ = store_credentials(&service, c);
@@ -80,16 +87,31 @@ pub(crate) fn build_client(config: &AppConfig, creds: Credentials) -> Result<Not
         .map_err(CliError::Api)
 }
 
-async fn login(cli: &Cli, config: &AppConfig, pre_auth_token: Option<&str>) -> Result<(), CliError> {
-    let anon = NotionCalendarClient::for_anonymous_requests(make_http_client()?, make_client_config(config)?);
+async fn login(
+    cli: &Cli,
+    config: &AppConfig,
+    pre_auth_token: Option<&str>,
+) -> Result<(), CliError> {
+    let anon = NotionCalendarClient::for_anonymous_requests(
+        make_http_client()?,
+        make_client_config(config)?,
+    );
 
     if let Some(token) = pre_auth_token {
-        let req = CreateNotionSessionRequest { pre_auth_token: token.to_string(), context: None };
-        let resp = create_notion_session(&anon, &req).await.map_err(CliError::Api)?;
+        let req = CreateNotionSessionRequest {
+            pre_auth_token: token.to_string(),
+            context: None,
+        };
+        let resp = create_notion_session(&anon, &req)
+            .await
+            .map_err(CliError::Api)?;
         let creds = Credentials::try_from(resp.user).map_err(CliError::Auth)?;
         store_credentials(&config.auth.keychain_service, &creds).map_err(CliError::Auth)?;
         if cli.json {
-            return print_json(cli, &serde_json::json!({ "userId": creds.user_id, "stored": true }));
+            return print_json(
+                cli,
+                &serde_json::json!({ "userId": creds.user_id, "stored": true }),
+            );
         }
         eprintln!("Session established; credentials stored in the OS keychain.");
         hint(&[
@@ -99,7 +121,9 @@ async fn login(cli: &Cli, config: &AppConfig, pre_auth_token: Option<&str>) -> R
         return Ok(());
     }
 
-    let url_resp = get_notion_login_url(&anon, &Default::default()).await.map_err(CliError::Api)?;
+    let url_resp = get_notion_login_url(&anon, &Default::default())
+        .await
+        .map_err(CliError::Api)?;
     if cli.json {
         return print_json(cli, &serde_json::json!({ "url": url_resp.url }));
     }
@@ -112,10 +136,15 @@ async fn login(cli: &Cli, config: &AppConfig, pre_auth_token: Option<&str>) -> R
 }
 
 async fn from_app(cli: &Cli, config: &AppConfig) -> Result<(), CliError> {
-    let creds = DesktopAppSource::from_env_or_default().obtain().map_err(CliError::Auth)?;
+    let creds = DesktopAppSource::from_env_or_default()
+        .obtain()
+        .map_err(CliError::Auth)?;
     store_credentials(&config.auth.keychain_service, &creds).map_err(CliError::Auth)?;
     if cli.json {
-        return print_json(cli, &serde_json::json!({ "stored": true, "source": "desktop-app" }));
+        return print_json(
+            cli,
+            &serde_json::json!({ "stored": true, "source": "desktop-app" }),
+        );
     }
     eprintln!("Imported credentials from the desktop app.");
     hint(&[
@@ -129,38 +158,63 @@ async fn from_app(cli: &Cli, config: &AppConfig) -> Result<(), CliError> {
 async fn status(cli: &Cli, config: &AppConfig) -> Result<(), CliError> {
     let sources: [(&str, Box<dyn CredentialSource>); 3] = [
         ("env", Box::new(EnvVarSource)),
-        ("keychain", Box::new(KeychainSource { service: config.auth.keychain_service.clone() })),
-        ("desktop-app", Box::new(DesktopAppSource::from_env_or_default())),
+        (
+            "keychain",
+            Box::new(KeychainSource {
+                service: config.auth.keychain_service.clone(),
+            }),
+        ),
+        (
+            "desktop-app",
+            Box::new(DesktopAppSource::from_env_or_default()),
+        ),
     ];
-    let (source_name, creds) = sources.into_iter()
+    let (source_name, creds) = sources
+        .into_iter()
         .find_map(|(name, src)| src.obtain().ok().map(|c| (name, c)))
         .ok_or(CliError::Auth(ncal_api::error::AuthError::NoCredentials))?;
 
     if cli.json {
-        return print_json(cli, &serde_json::json!({
-            "source": source_name,
-            "userId": creds.user_id,
-            "accessTokenExpiresAt": creds.access_token_expires_at,
-            "hasRefreshToken": !creds.refresh_token.is_empty(),
-        }));
+        return print_json(
+            cli,
+            &serde_json::json!({
+                "source": source_name,
+                "userId": creds.user_id,
+                "accessTokenExpiresAt": creds.access_token_expires_at,
+                "hasRefreshToken": !creds.refresh_token.is_empty(),
+            }),
+        );
     }
 
     print_kv(&[
         ("Source", source_name.into()),
         ("User ID", creds.user_id.clone()),
-        ("Token expires", if creds.access_token_expires_at.is_empty() {
-            "(unknown)".into()
-        } else {
-            creds.access_token_expires_at.clone()
-        }),
-        ("Refresh token", if creds.refresh_token.is_empty() { "no".into() } else { "yes".into() }),
+        (
+            "Token expires",
+            if creds.access_token_expires_at.is_empty() {
+                "(unknown)".into()
+            } else {
+                creds.access_token_expires_at.clone()
+            },
+        ),
+        (
+            "Refresh token",
+            if creds.refresh_token.is_empty() {
+                "no".into()
+            } else {
+                "yes".into()
+            },
+        ),
     ]);
     Ok(())
 }
 
 async fn refresh(config: &AppConfig) -> Result<(), CliError> {
     let creds = resolve_credentials(config)?;
-    build_client(config, creds)?.refresh_session_now().await.map_err(CliError::Api)?;
+    build_client(config, creds)?
+        .refresh_session_now()
+        .await
+        .map_err(CliError::Api)?;
     eprintln!("Token refresh OK.");
     Ok(())
 }
@@ -168,7 +222,9 @@ async fn refresh(config: &AppConfig) -> Result<(), CliError> {
 async fn logout(config: &AppConfig) -> Result<(), CliError> {
     ncal_api::auth::delete_credentials(&config.auth.keychain_service).map_err(CliError::Auth)?;
     eprintln!("Removed CLI credentials from keychain.");
-    hint(&["ncal auth login     — sign in again",
-           "ncal auth from-app  — import from desktop app"]);
+    hint(&[
+        "ncal auth login     — sign in again",
+        "ncal auth from-app  — import from desktop app",
+    ]);
     Ok(())
 }

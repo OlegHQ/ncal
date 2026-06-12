@@ -121,8 +121,8 @@ impl AppConfig {
             return Ok(Self::default());
         }
 
-        let raw = std::fs::read_to_string(&path)
-            .map_err(|e| format!("read {}: {e}", path.display()))?;
+        let raw =
+            std::fs::read_to_string(&path).map_err(|e| format!("read {}: {e}", path.display()))?;
         toml::from_str(&raw).map_err(|e| format!("parse {}: {e}", path.display()))
     }
 
