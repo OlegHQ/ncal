@@ -1,4 +1,6 @@
 use std::fs;
+#[cfg(unix)]
+use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
@@ -87,6 +89,31 @@ impl CredentialSource for KeychainSource {
         let json = entry.get_password().map_err(|_| AuthError::NoCredentials)?;
         serde_json::from_str(&json).map_err(|e| AuthError::Json {
             context: format!("keychain entry for service {:?}", self.service),
+            source: e,
+        })
+    }
+}
+
+/// Read tokens persisted as JSON in a local credentials file.
+pub struct FileSource {
+    pub path: PathBuf,
+}
+
+impl CredentialSource for FileSource {
+    fn name(&self) -> &'static str {
+        "file"
+    }
+
+    fn obtain(&self) -> Result<Credentials, AuthError> {
+        let json = fs::read_to_string(&self.path).map_err(|e| match e.kind() {
+            std::io::ErrorKind::NotFound => AuthError::NoCredentials,
+            _ => AuthError::Io {
+                path: self.path.display().to_string(),
+                source: e,
+            },
+        })?;
+        serde_json::from_str(&json).map_err(|e| AuthError::Json {
+            context: format!("credentials file {}", self.path.display()),
             source: e,
         })
     }
@@ -232,6 +259,29 @@ pub fn store_credentials(service: &str, creds: &Credentials) -> Result<(), AuthE
     Ok(())
 }
 
+pub fn store_credentials_file(path: &Path, creds: &Credentials) -> Result<(), AuthError> {
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent).map_err(|e| AuthError::Io {
+            path: parent.display().to_string(),
+            source: e,
+        })?;
+    }
+    let json = serde_json::to_string(creds).map_err(|e| AuthError::Json {
+        context: "serializing credentials for file storage".into(),
+        source: e,
+    })?;
+    fs::write(path, json).map_err(|e| AuthError::Io {
+        path: path.display().to_string(),
+        source: e,
+    })?;
+    #[cfg(unix)]
+    fs::set_permissions(path, fs::Permissions::from_mode(0o600)).map_err(|e| AuthError::Io {
+        path: path.display().to_string(),
+        source: e,
+    })?;
+    Ok(())
+}
+
 pub fn delete_credentials(service: &str) -> Result<(), AuthError> {
     let entry = keyring::Entry::new(service, "default").map_err(|e| AuthError::Keychain {
         operation: "open",
@@ -242,6 +292,17 @@ pub fn delete_credentials(service: &str) -> Result<(), AuthError> {
         Err(e) => Err(AuthError::Keychain {
             operation: "delete",
             reason: e.to_string(),
+        }),
+    }
+}
+
+pub fn delete_credentials_file(path: &Path) -> Result<(), AuthError> {
+    match fs::remove_file(path) {
+        Ok(()) => Ok(()),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
+        Err(e) => Err(AuthError::Io {
+            path: path.display().to_string(),
+            source: e,
         }),
     }
 }

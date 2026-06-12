@@ -20,6 +20,8 @@ pub struct AppConfig {
 pub struct AuthSection {
     #[serde(default = "default_keychain_service")]
     pub keychain_service: String,
+    #[serde(default = "default_credentials_file")]
+    pub credentials_file: PathBuf,
 }
 
 fn default_keychain_service() -> String {
@@ -30,6 +32,7 @@ impl Default for AuthSection {
     fn default() -> Self {
         Self {
             keychain_service: default_keychain_service(),
+            credentials_file: default_credentials_file(),
         }
     }
 }
@@ -69,6 +72,12 @@ fn default_cache_file() -> PathBuf {
     dirs()
         .map(|d| d.data_dir().join("cache.json"))
         .unwrap_or_else(|| PathBuf::from("cache.json"))
+}
+
+fn default_credentials_file() -> PathBuf {
+    dirs()
+        .map(|d| d.config_dir().join("credentials.json"))
+        .unwrap_or_else(|| PathBuf::from("credentials.json"))
 }
 
 fn default_cache_max_age() -> u64 {

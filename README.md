@@ -70,6 +70,35 @@ Or start the browser-based Notion login flow:
 ncal auth login
 ```
 
+On an SSH/headless machine, the browser may finish at `https://calendar.notion.so/` without exposing the intermediate `preAuthToken`. In that case, use the browser's Local Storage value instead:
+
+```sh
+# In your local browser after logging in:
+# DevTools -> Application/Storage -> Local Storage -> https://calendar.notion.so
+# copy the value for user.auth.currentUser into user.json
+
+ncal auth import-user-json --file user.json
+```
+
+You can also pipe the copied JSON through stdin:
+
+```sh
+pbpaste | ncal auth import-user-json --stdin
+```
+
+Direct paste is supported, but avoid it on shared machines because shell history may capture tokens:
+
+```sh
+ncal auth import-user-json --raw-json '<user.auth.currentUser JSON>'
+```
+
+The CLI stores imported credentials in the OS keychain when available. On headless Linux or SSH hosts without a usable secret service, it falls back to a credentials file at the platform config path, or the path configured in:
+
+```toml
+[auth]
+credentials_file = "/secure/path/ncal-credentials.json"
+```
+
 Check authentication and list calendar data:
 
 ```sh
@@ -90,6 +119,7 @@ ncal events list --json
 | --- | --- |
 | `ncal auth login` | OAuth sign-in flow |
 | `ncal auth from-app` | Import tokens from the desktop app |
+| `ncal auth import-user-json` | Import browser LocalStorage `user.auth.currentUser` JSON |
 | `ncal auth status` | Show credential source and expiry |
 | `ncal auth refresh` | Refresh stored credentials |
 | `ncal auth logout` | Remove stored credentials |
@@ -121,7 +151,7 @@ The CLI is designed for both humans and automation:
 
 ## Auth and Stability
 
-`ncal auth from-app` reads the Notion Calendar desktop app's Chromium LocalStorage LevelDB from `~/Library/Application Support/Notion Calendar/Local Storage/leveldb/` on macOS. Do not commit tokens, cookies, captures, or personal calendar data.
+`ncal auth from-app` reads the Notion Calendar desktop app's Chromium LocalStorage LevelDB from `~/Library/Application Support/Notion Calendar/Local Storage/leveldb/` on macOS. CLI credentials are stored in the OS keychain when available, with file storage as a headless fallback. Do not commit tokens, cookies, captures, credential files, or personal calendar data.
 
 The backend API base is `https://calendar-api.notion.so`. This is an unpublished Notion Calendar API surface and can change without notice. The research notes and API contract in `research/` are the source of truth for what has been confirmed.
 
