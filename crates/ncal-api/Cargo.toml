@@ -12,7 +12,6 @@ categories.workspace = true
 
 [dependencies]
 chrono = { version = "0.4", features = ["serde"] }
-keyring = "3"
 reqwest = { version = "0.12", default-features = false, features = ["json", "gzip", "rustls-tls"] }
 rusty-leveldb = "1.0"
 serde = { version = "1", features = ["derive"] }
@@ -22,3 +21,9 @@ thiserror = "2"
 tokio = { version = "1", features = ["sync"] }
 tracing = "0.1"
 url = "2"
+
+[target.'cfg(target_os = "macos")'.dependencies]
+keyring = { version = "3", features = ["apple-native"] }
+
+[target.'cfg(target_os = "linux")'.dependencies]
+keyring = { version = "3", features = ["linux-native"] }
