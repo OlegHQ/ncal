@@ -87,16 +87,18 @@ pub async fn run(cli: &Cli, config: &AppConfig, cmd: &HoldsCmd) -> Result<(), Cl
                 cli,
                 config,
                 &client,
-                title,
-                alias,
-                *duration,
-                timezone.as_deref(),
-                account,
-                calendar,
-                hold_type,
-                description.as_deref(),
-                *min_lead_time,
-                *max_lead_time,
+                CreateHoldArgs {
+                    title,
+                    alias,
+                    duration: *duration,
+                    timezone: timezone.as_deref(),
+                    account,
+                    calendar,
+                    hold_type,
+                    description: description.as_deref(),
+                    min_lead_time: *min_lead_time,
+                    max_lead_time: *max_lead_time,
+                },
             )
             .await
         }
@@ -139,45 +141,49 @@ async fn get(
     Ok(())
 }
 
-#[allow(clippy::too_many_arguments)]
+struct CreateHoldArgs<'a> {
+    title: &'a str,
+    alias: &'a str,
+    duration: u32,
+    timezone: Option<&'a str>,
+    account: &'a str,
+    calendar: &'a str,
+    hold_type: &'a str,
+    description: Option<&'a str>,
+    min_lead_time: Option<u64>,
+    max_lead_time: Option<u64>,
+}
+
 async fn create(
     cli: &Cli,
     config: &AppConfig,
     client: &ncal_api::client::NotionCalendarClient,
-    title: &str,
-    alias: &str,
-    duration: u32,
-    timezone: Option<&str>,
-    account: &str,
-    calendar: &str,
-    hold_type: &str,
-    description: Option<&str>,
-    min_lead_time: Option<u64>,
-    max_lead_time: Option<u64>,
+    args: CreateHoldArgs<'_>,
 ) -> Result<(), CliError> {
-    let tz = timezone
+    let tz = args
+        .timezone
         .map(String::from)
         .or_else(|| config.defaults.timezone.clone())
         .unwrap_or_else(|| "UTC".to_string());
     let id = uuid::Uuid::new_v4().to_string();
     let req = CreateHoldRequest {
         id: id.clone(),
-        alias: alias.to_string(),
-        hold_type: hold_type.to_string(),
+        alias: args.alias.to_string(),
+        hold_type: args.hold_type.to_string(),
         status: "activeBookable".to_string(),
         user_primary_time_zone: tz.clone(),
         time_zone: tz,
-        duration: Some(duration),
+        duration: Some(args.duration),
         time_ranges: Some(Vec::<TimeRange>::new()),
-        title: title.to_string(),
-        description: description.map(String::from),
+        title: args.title.to_string(),
+        description: args.description.map(String::from),
         conferencing_provider_name: None,
         conferencing_account_id: None,
-        google_account_id: account.to_string(),
-        google_calendar_id: calendar.to_string(),
+        google_account_id: args.account.to_string(),
+        google_calendar_id: args.calendar.to_string(),
         conflict_free_resources: None,
-        min_lead_time,
-        max_lead_time,
+        min_lead_time: args.min_lead_time,
+        max_lead_time: args.max_lead_time,
         expiration_date: None,
     };
     let resp = create_hold(client, &req).await.map_err(CliError::Api)?;

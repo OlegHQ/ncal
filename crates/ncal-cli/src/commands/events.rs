@@ -142,16 +142,18 @@ pub async fn run(cli: &Cli, config: &AppConfig, cmd: &EventsCmd) -> Result<(), C
                 cli,
                 config,
                 &client,
-                account.as_deref(),
-                calendar.as_deref(),
-                provider.as_deref(),
-                from_time.as_deref(),
-                to_time.as_deref(),
-                query.as_deref(),
-                *limit,
-                *all,
-                *include_deleted,
-                *refresh,
+                ListEvents {
+                    account: account.as_deref(),
+                    calendar: calendar.as_deref(),
+                    provider: provider.as_deref(),
+                    from_time: from_time.as_deref(),
+                    to_time: to_time.as_deref(),
+                    query: query.as_deref(),
+                    limit: *limit,
+                    all: *all,
+                    include_deleted: *include_deleted,
+                    refresh: *refresh,
+                },
             )
             .await
         }
@@ -186,14 +188,16 @@ pub async fn run(cli: &Cli, config: &AppConfig, cmd: &EventsCmd) -> Result<(), C
                 cli,
                 config,
                 &client,
-                account.as_deref(),
-                calendar.as_deref(),
-                provider.as_deref(),
-                summary,
-                start,
-                end,
-                description.as_deref(),
-                location.as_deref(),
+                CreateEventArgs {
+                    account: account.as_deref(),
+                    calendar: calendar.as_deref(),
+                    provider: provider.as_deref(),
+                    summary,
+                    start,
+                    end,
+                    description: description.as_deref(),
+                    location: location.as_deref(),
+                },
             )
             .await
         }
@@ -212,15 +216,17 @@ pub async fn run(cli: &Cli, config: &AppConfig, cmd: &EventsCmd) -> Result<(), C
                 cli,
                 config,
                 &client,
-                event_id,
-                account.as_deref(),
-                calendar.as_deref(),
-                provider.as_deref(),
-                summary.as_deref(),
-                start.as_deref(),
-                end.as_deref(),
-                description.as_deref(),
-                location.as_deref(),
+                UpdateEventArgs {
+                    event_id,
+                    account: account.as_deref(),
+                    calendar: calendar.as_deref(),
+                    provider: provider.as_deref(),
+                    summary: summary.as_deref(),
+                    start: start.as_deref(),
+                    end: end.as_deref(),
+                    description: description.as_deref(),
+                    location: location.as_deref(),
+                },
             )
             .await
         }
@@ -235,48 +241,56 @@ pub async fn run(cli: &Cli, config: &AppConfig, cmd: &EventsCmd) -> Result<(), C
                 cli,
                 config,
                 &client,
-                event_id,
-                account.as_deref(),
-                calendar.as_deref(),
-                provider.as_deref(),
-                *hard,
+                DeleteEventArgs {
+                    event_id,
+                    account: account.as_deref(),
+                    calendar: calendar.as_deref(),
+                    provider: provider.as_deref(),
+                    hard: *hard,
+                },
             )
             .await
         }
     }
 }
 
-#[allow(clippy::too_many_arguments)]
-async fn list(
-    cli: &Cli,
-    config: &AppConfig,
-    client: &ncal_api::client::NotionCalendarClient,
-    account: Option<&str>,
-    calendar: Option<&str>,
-    provider: Option<&str>,
-    from_time: Option<&str>,
-    to_time: Option<&str>,
-    query: Option<&str>,
+struct ListEvents<'a> {
+    account: Option<&'a str>,
+    calendar: Option<&'a str>,
+    provider: Option<&'a str>,
+    from_time: Option<&'a str>,
+    to_time: Option<&'a str>,
+    query: Option<&'a str>,
     limit: Option<u32>,
     all: bool,
     include_deleted: bool,
     refresh: bool,
+}
+
+async fn list(
+    cli: &Cli,
+    config: &AppConfig,
+    client: &ncal_api::client::NotionCalendarClient,
+    args: ListEvents<'_>,
 ) -> Result<(), CliError> {
-    let time_min = match from_time {
+    let time_min = match args.from_time {
         Some(s) => Some(parse_time_ms("from-time", s)?),
-        None if all => None,
+        None if args.all => None,
         None => Some(chrono::Utc::now().timestamp_millis()),
     };
-    let time_max = to_time.map(|s| parse_time_ms("to-time", s)).transpose()?;
+    let time_max = args
+        .to_time
+        .map(|s| parse_time_ms("to-time", s))
+        .transpose()?;
 
     // Try cache first (all-accounts path only, no filters).
-    let use_cache = !refresh
-        && account.is_none()
-        && calendar.is_none()
-        && provider.is_none()
+    let use_cache = !args.refresh
+        && args.account.is_none()
+        && args.calendar.is_none()
+        && args.provider.is_none()
         && config.defaults.account.is_none()
         && config.defaults.calendar.is_none()
-        && query.is_none();
+        && args.query.is_none();
 
     let events = if use_cache {
         if let Some(cached) = cache::read_fresh_cache(config) {
@@ -288,15 +302,18 @@ async fn list(
         }
     } else {
         // Filtered path: use getEvents API with specific targets.
-        let targets = if account.is_some() || calendar.is_some() || provider.is_some() {
-            let ctx = resolve_context(config, client, account, calendar, provider).await?;
-            vec![ctx]
-        } else if config.defaults.account.is_some() || config.defaults.calendar.is_some() {
-            let ctx = resolve_context(config, client, None, None, None).await?;
-            vec![ctx]
-        } else {
-            build_all_account_queries(client).await?
-        };
+        let targets =
+            if args.account.is_some() || args.calendar.is_some() || args.provider.is_some() {
+                let ctx =
+                    resolve_context(config, client, args.account, args.calendar, args.provider)
+                        .await?;
+                vec![ctx]
+            } else if config.defaults.account.is_some() || config.defaults.calendar.is_some() {
+                let ctx = resolve_context(config, client, None, None, None).await?;
+                vec![ctx]
+            } else {
+                build_all_account_queries(client).await?
+            };
 
         let queries = targets
             .into_iter()
@@ -307,10 +324,10 @@ async fn list(
                 time_min,
                 time_max,
                 single_events: Some(true),
-                show_deleted: Some(include_deleted),
-                query: query.map(String::from),
+                show_deleted: Some(args.include_deleted),
+                query: args.query.map(String::from),
                 user_time_zone: config.defaults.timezone.clone(),
-                limit,
+                limit: args.limit,
             })
             .collect();
 
@@ -333,7 +350,7 @@ async fn list(
     let filtered: Vec<&ncal_api::types::Event> = events
         .iter()
         .filter(|e| {
-            if !include_deleted && e.status == Some(ncal_api::types::EventStatus::Cancelled) {
+            if !args.include_deleted && e.status == Some(ncal_api::types::EventStatus::Cancelled) {
                 return false;
             }
             let key = event_sort_key(e);
@@ -352,7 +369,7 @@ async fn list(
         .collect();
 
     // Apply limit.
-    let limited: Vec<ncal_api::types::Event> = if let Some(n) = limit {
+    let limited: Vec<ncal_api::types::Event> = if let Some(n) = args.limit {
         let mut sorted = filtered;
         sorted.sort_by_key(|e| event_sort_key(e));
         sorted.into_iter().take(n as usize).cloned().collect()
@@ -404,40 +421,43 @@ async fn get(
     Ok(())
 }
 
-#[allow(clippy::too_many_arguments)]
+struct CreateEventArgs<'a> {
+    account: Option<&'a str>,
+    calendar: Option<&'a str>,
+    provider: Option<&'a str>,
+    summary: &'a str,
+    start: &'a str,
+    end: &'a str,
+    description: Option<&'a str>,
+    location: Option<&'a str>,
+}
+
 async fn create(
     cli: &Cli,
     config: &AppConfig,
     client: &ncal_api::client::NotionCalendarClient,
-    account: Option<&str>,
-    calendar: Option<&str>,
-    provider: Option<&str>,
-    summary: &str,
-    start: &str,
-    end: &str,
-    description: Option<&str>,
-    location: Option<&str>,
+    args: CreateEventArgs<'_>,
 ) -> Result<(), CliError> {
-    let (acct, cal, prov) = resolve_context(config, client, account, calendar, provider).await?;
+    let (acct, cal, prov) =
+        resolve_context(config, client, args.account, args.calendar, args.provider).await?;
     let tz = config.defaults.timezone.as_deref();
-    let mut event_data = serde_json::json!({
-        "summary": summary,
-        "start": event_date_json(start, tz),
-        "end": event_date_json(end, tz),
-    });
-    let obj = event_data.as_object_mut().unwrap();
-    if let Some(d) = description {
-        obj.insert("description".into(), serde_json::json!(d));
+    let mut event_data = serde_json::Map::from_iter([
+        ("summary".into(), serde_json::json!(args.summary)),
+        ("start".into(), event_date_json(args.start, tz)),
+        ("end".into(), event_date_json(args.end, tz)),
+    ]);
+    if let Some(d) = args.description {
+        event_data.insert("description".into(), serde_json::json!(d));
     }
-    if let Some(l) = location {
-        obj.insert("location".into(), serde_json::json!(l));
+    if let Some(l) = args.location {
+        event_data.insert("location".into(), serde_json::json!(l));
     }
     let req = CreateEventRequest {
         mutation: CreateEventMutation {
             provider: prov,
             account_id: acct,
             calendar_id: cal,
-            event_data,
+            event_data: serde_json::Value::Object(event_data),
             send_updates: None,
         },
     };
@@ -453,37 +473,41 @@ async fn create(
     Ok(())
 }
 
-#[allow(clippy::too_many_arguments)]
+struct UpdateEventArgs<'a> {
+    event_id: &'a str,
+    account: Option<&'a str>,
+    calendar: Option<&'a str>,
+    provider: Option<&'a str>,
+    summary: Option<&'a str>,
+    start: Option<&'a str>,
+    end: Option<&'a str>,
+    description: Option<&'a str>,
+    location: Option<&'a str>,
+}
+
 async fn update(
     cli: &Cli,
     config: &AppConfig,
     client: &ncal_api::client::NotionCalendarClient,
-    event_id: &str,
-    account: Option<&str>,
-    calendar: Option<&str>,
-    provider: Option<&str>,
-    summary: Option<&str>,
-    start: Option<&str>,
-    end: Option<&str>,
-    description: Option<&str>,
-    location: Option<&str>,
+    args: UpdateEventArgs<'_>,
 ) -> Result<(), CliError> {
-    let (acct, cal, prov) = resolve_context(config, client, account, calendar, provider).await?;
+    let (acct, cal, prov) =
+        resolve_context(config, client, args.account, args.calendar, args.provider).await?;
     let tz = config.defaults.timezone.as_deref();
     let mut partial = serde_json::Map::new();
-    if let Some(s) = summary {
+    if let Some(s) = args.summary {
         partial.insert("summary".into(), serde_json::json!(s));
     }
-    if let Some(s) = start {
+    if let Some(s) = args.start {
         partial.insert("start".into(), event_date_json(s, tz));
     }
-    if let Some(s) = end {
+    if let Some(s) = args.end {
         partial.insert("end".into(), event_date_json(s, tz));
     }
-    if let Some(d) = description {
+    if let Some(d) = args.description {
         partial.insert("description".into(), serde_json::json!(d));
     }
-    if let Some(l) = location {
+    if let Some(l) = args.location {
         partial.insert("location".into(), serde_json::json!(l));
     }
     if partial.is_empty() {
@@ -495,7 +519,7 @@ async fn update(
         mutations: vec![UpdateEventMutation {
             provider: prov,
             account_id: acct,
-            event_id: event_id.to_string(),
+            event_id: args.event_id.to_string(),
             calendar_id: cal,
             event_data: serde_json::Value::Object(partial),
             user_time_zone: config.defaults.timezone.clone(),
@@ -518,25 +542,29 @@ async fn update(
     Ok(())
 }
 
-#[allow(clippy::too_many_arguments)]
+struct DeleteEventArgs<'a> {
+    event_id: &'a str,
+    account: Option<&'a str>,
+    calendar: Option<&'a str>,
+    provider: Option<&'a str>,
+    hard: bool,
+}
+
 async fn delete(
     cli: &Cli,
     config: &AppConfig,
     client: &ncal_api::client::NotionCalendarClient,
-    event_id: &str,
-    account: Option<&str>,
-    calendar: Option<&str>,
-    provider: Option<&str>,
-    hard: bool,
+    args: DeleteEventArgs<'_>,
 ) -> Result<(), CliError> {
-    let (acct, cal, prov) = resolve_context(config, client, account, calendar, provider).await?;
-    if hard {
+    let (acct, cal, prov) =
+        resolve_context(config, client, args.account, args.calendar, args.provider).await?;
+    if args.hard {
         let req = DeleteEventsRequest {
             mutations: vec![DeleteEventMutation {
                 provider: prov,
                 account_id: acct,
                 calendar_id: cal,
-                event_id: event_id.to_string(),
+                event_id: args.event_id.to_string(),
                 send_updates: None,
             }],
         };
@@ -551,7 +579,7 @@ async fn delete(
         mutations: vec![UpdateEventMutation {
             provider: prov,
             account_id: acct,
-            event_id: event_id.to_string(),
+            event_id: args.event_id.to_string(),
             calendar_id: cal,
             event_data: serde_json::json!({ "status": "cancelled", "responseStatus": "declined" }),
             user_time_zone: config.defaults.timezone.clone(),
