@@ -72,7 +72,7 @@ fn error_hint(e: &CliError) -> Option<&'static str> {
             Some("the desktop app's stored credentials may be corrupt or from an incompatible version; try logging out and back in to the desktop app")
         }
         CliError::Auth(ncal_api::error::AuthError::Keychain { .. }) => {
-            Some("check macOS Keychain Access for the 'notion-calendar-cli' entry, or re-run `ncal auth from-app`")
+            Some("OS keychain is unavailable; import auth with `ncal auth import-user-json --file user.json` to use file fallback, or configure [auth].credentials_file")
         }
         CliError::Api(ncal_api::error::ApiError::InvalidToken) => {
             Some("session expired; run `ncal auth refresh` or `ncal auth from-app`")

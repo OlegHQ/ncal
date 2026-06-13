@@ -82,16 +82,57 @@ fn make_client_config(config: &AppConfig) -> Result<ClientConfig, CliError> {
 }
 
 pub(crate) fn resolve_credentials(config: &AppConfig) -> Result<Credentials, CliError> {
-    let env = EnvVarSource;
+    load_credentials(config).map(|loaded| loaded.creds)
+}
+
+struct LoadedCredentials {
+    source: &'static str,
+    creds: Credentials,
+}
+
+fn load_credentials(config: &AppConfig) -> Result<LoadedCredentials, CliError> {
+    if let Ok(creds) = EnvVarSource.obtain() {
+        return Ok(LoadedCredentials {
+            source: "env",
+            creds,
+        });
+    }
+
     let keychain = KeychainSource {
         service: config.auth.keychain_service.clone(),
     };
+    match keychain.obtain() {
+        Ok(creds) => {
+            return Ok(LoadedCredentials {
+                source: "keychain",
+                creds,
+            });
+        }
+        Err(ncal_api::error::AuthError::NoCredentials) => {}
+        Err(_) => {}
+    }
+
     let file = FileSource {
         path: config.auth.credentials_file.clone(),
     };
-    let desktop = DesktopAppSource::from_env_or_default();
-    let chain: [&dyn CredentialSource; 4] = [&env, &keychain, &file, &desktop];
-    ncal_api::auth::resolve_credentials(&chain).map_err(CliError::Auth)
+    match file.obtain() {
+        Ok(creds) => {
+            return Ok(LoadedCredentials {
+                source: "file",
+                creds,
+            });
+        }
+        Err(ncal_api::error::AuthError::NoCredentials) => {}
+        Err(err) => return Err(CliError::Auth(err)),
+    }
+
+    let creds = DesktopAppSource::from_env_or_default()
+        .obtain()
+        .map_err(CliError::Auth)?;
+    Ok(LoadedCredentials {
+        source: "desktop-app",
+        creds,
+    })
 }
 
 pub(crate) fn build_client(
@@ -99,8 +140,11 @@ pub(crate) fn build_client(
     creds: Credentials,
 ) -> Result<NotionCalendarClient, CliError> {
     let service = config.auth.keychain_service.clone();
+    let credentials_file = config.auth.credentials_file.clone();
     let on_refresh: OnTokenRefresh = Arc::new(move |c: &Credentials| {
-        let _ = store_credentials(&service, c);
+        if store_credentials(&service, c).is_err() {
+            let _ = store_credentials_file(&credentials_file, c);
+        }
     });
     NotionCalendarClient::builder(make_http_client()?)
         .config(make_client_config(config)?)
@@ -254,29 +298,9 @@ fn parse_user_json(input: &str) -> Result<User, CliError> {
 }
 
 async fn status(cli: &Cli, config: &AppConfig) -> Result<(), CliError> {
-    let sources: [(&str, Box<dyn CredentialSource>); 4] = [
-        ("env", Box::new(EnvVarSource)),
-        (
-            "keychain",
-            Box::new(KeychainSource {
-                service: config.auth.keychain_service.clone(),
-            }),
-        ),
-        (
-            "file",
-            Box::new(FileSource {
-                path: config.auth.credentials_file.clone(),
-            }),
-        ),
-        (
-            "desktop-app",
-            Box::new(DesktopAppSource::from_env_or_default()),
-        ),
-    ];
-    let (source_name, creds) = sources
-        .into_iter()
-        .find_map(|(name, src)| src.obtain().ok().map(|c| (name, c)))
-        .ok_or(CliError::Auth(ncal_api::error::AuthError::NoCredentials))?;
+    let loaded = load_credentials(config)?;
+    let source_name = loaded.source;
+    let creds = loaded.creds;
 
     if cli.json {
         return print_json(
@@ -324,11 +348,8 @@ async fn refresh(config: &AppConfig) -> Result<(), CliError> {
 }
 
 async fn logout(config: &AppConfig) -> Result<(), CliError> {
-    let keychain_result = ncal_api::auth::delete_credentials(&config.auth.keychain_service);
+    let _ = ncal_api::auth::delete_credentials(&config.auth.keychain_service);
     delete_credentials_file(&config.auth.credentials_file).map_err(CliError::Auth)?;
-    if let Err(err) = keychain_result {
-        eprintln!("warning: could not remove keychain credentials: {err}");
-    }
     eprintln!("Removed CLI credentials from keychain and file storage.");
     hint(&[
         "ncal auth login     — sign in again",
