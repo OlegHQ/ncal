@@ -1,13 +1,13 @@
 [workspace]
 resolver = "2"
-members = ["crates/ncal-api", "crates/ncal-cli", "xtask"]
+members = ["crates/ncal-api", "crates/ncal", "xtask"]
 
 [workspace.package]
 version = "0.1.0"
 edition = "2021"
 license = "MIT"
-repository = "https://github.com/OlegHQ/notion-calendar-cli"
-homepage = "https://github.com/OlegHQ/notion-calendar-cli"
+repository = "https://github.com/OlegHQ/ncal"
+homepage = "https://github.com/OlegHQ/ncal"
 readme = "README.md"
 keywords = ["notion", "calendar", "cli", "automation", "agents"]
 categories = ["command-line-utilities", "api-bindings"]

@@ -1,5 +1,5 @@
 # shellcheck shell=bash
-# Shared helpers for notion-calendar-cli RE scripts.
+# Shared helpers for ncal RE scripts.
 
 default_app() {
   echo "${NOTION_CALENDAR_APP:-/Applications/Notion Calendar.app}"

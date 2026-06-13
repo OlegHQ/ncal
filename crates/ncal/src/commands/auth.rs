@@ -65,7 +65,7 @@ pub async fn run(cli: &Cli, config: &AppConfig, cmd: &AuthCmd) -> Result<(), Cli
 
 fn make_http_client() -> Result<reqwest::Client, CliError> {
     reqwest::Client::builder()
-        .user_agent(concat!("ncal-cli/", env!("CARGO_PKG_VERSION")))
+        .user_agent(concat!("ncal/", env!("CARGO_PKG_VERSION")))
         .build()
         .map_err(|e| CliError::Api(ncal_api::error::ApiError::Network(e)))
 }

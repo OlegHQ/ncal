@@ -1,8 +1,8 @@
 [package]
-name = "ncal-cli"
+name = "ncal"
 version.workspace = true
 edition.workspace = true
-description = "Notion Calendar CLI for agent-driven automation"
+description = "Agent-oriented Notion Calendar CLI"
 license.workspace = true
 repository.workspace = true
 homepage.workspace = true

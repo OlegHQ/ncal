@@ -1,10 +1,10 @@
-# notion-calendar-cli
+# ncal
 
 Agent-oriented Rust CLI for Notion Calendar automation.
 
 `ncal` wraps the Notion Calendar HTTP surface characterized in this repo, with stable command output for humans and scripts. It prefers safe, documented behavior where available and labels the unpublished Notion Calendar endpoints as version-fragile.
 
-[![CI](https://github.com/OlegHQ/notion-calendar-cli/actions/workflows/ci.yml/badge.svg)](https://github.com/OlegHQ/notion-calendar-cli/actions/workflows/ci.yml)
+[![CI](https://github.com/OlegHQ/ncal/actions/workflows/ci.yml/badge.svg)](https://github.com/OlegHQ/ncal/actions/workflows/ci.yml)
 ![Version](https://img.shields.io/badge/version-v0.1.0-blue)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 ![Built with Rust](https://img.shields.io/badge/built%20with-Rust-orange)
@@ -16,24 +16,24 @@ Prebuilt binaries are published on GitHub Releases for macOS and Linux.
 ### Homebrew - macOS and Linux
 
 ```sh
-brew install OlegHQ/tap/ncal-cli
+brew install OlegHQ/tap/ncal
 ```
 
 Upgrade with:
 
 ```sh
-brew upgrade ncal-cli
+brew upgrade ncal
 ```
 
 ### Install Script - macOS and Linux
 
 ```sh
-curl --proto '=https' --tlsv1.2 -LsSf https://github.com/OlegHQ/notion-calendar-cli/releases/latest/download/ncal-cli-installer.sh | sh
+curl --proto '=https' --tlsv1.2 -LsSf https://github.com/OlegHQ/ncal/releases/latest/download/ncal-installer.sh | sh
 ```
 
 ### Prebuilt Archives
 
-Download an archive from the [latest release](https://github.com/OlegHQ/notion-calendar-cli/releases/latest), extract it, and put `ncal` on your `PATH`.
+Download an archive from the [latest release](https://github.com/OlegHQ/ncal/releases/latest), extract it, and put `ncal` on your `PATH`.
 
 Supported targets:
 
@@ -49,7 +49,7 @@ Each release includes checksums and a `dist-manifest.json`.
 ### From Source
 
 ```sh
-cargo install --path crates/ncal-cli
+cargo install --path crates/ncal
 # or
 make install
 ```

@@ -1,5 +1,5 @@
 [workspace]
-members = ["cargo:crates/ncal-cli"]
+members = ["cargo:crates/ncal"]
 
 # Config for 'dist'
 [dist]

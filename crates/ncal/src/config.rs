@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
-const DEFAULT_SERVICE: &str = "notion-calendar-cli";
+const DEFAULT_SERVICE: &str = "ncal";
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct AppConfig {

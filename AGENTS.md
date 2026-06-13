@@ -1,10 +1,10 @@
-# Agent guide: Notion Calendar CLI / reverse engineering
+# Agent guide: ncal / Notion Calendar reverse engineering
 
 This repository exists to **document and understand** how Notion Calendar (desktop shell + web app) reaches backend services, and to ship a **small Rust CLI** with minimal UX aimed at **agent-driven automation** (scripts and AI agents calling stable commands). The CLI should call the **Notion Calendar / Notion HTTP API surface** we can characterize from evidence—**not** by repackaging Electron—preferring documented Notion APIs where they cover needed operations and filling gaps only with deliberately scoped, stability-labeled internal calls discovered here.
 
 ## Charter
 
-- **CLI implementation:** **Rust** binary (`ncal-api` library + `ncal-cli` binary), talking to network APIs with dual human/machine output; design guidance lives in `.agents/skills/agent-cli-ux/`.
+- **CLI implementation:** **Rust** binary (`ncal-api` library + `ncal` binary crate), talking to network APIs with dual human/machine output; design guidance lives in `.agents/skills/agent-cli-ux/`.
 - **Primary RE target (local install):** `/Applications/Notion Calendar.app`
 - **Immediate objective:** Map client architecture (Electron + packaged assets + loaded web origin), surface candidate endpoints, auth/session flows, and sync patterns—**without** guessing credentials or bypassing protections.
 - **Longer objective:** Implement a thin CLI that wraps only what we can support safely (prefer public APIs and documented flows when available); treat any unpublished endpoints as **optional** and version-fragile.
@@ -212,7 +212,7 @@ make test      # cargo test
 1. ~~Pin the shipping Electron major and ASAR layout~~ — *done* (v1.132.0, Electron 33.2.0).
 2. ~~Extract base URLs and endpoint patterns~~ — *done* (85 RPCs fully documented).
 3. ~~Cross-check against published Notion docs~~ — *done* (Notion public API is separate; calendar API is internal).
-4. ~~Scaffold Rust crate~~ — *done* (workspace with ncal-api + ncal-cli).
+4. ~~Scaffold Rust crate~~ — *done* (workspace with ncal-api + ncal).
 5. ~~Implement P0 commands~~ — *done* (auth, events CRUD, calendar listing, sync, contacts).
 6. **Implement P1 commands** — holds/scheduling, user preferences update.
 7. **Publish and iterate** — CI, integration tests against a test account.

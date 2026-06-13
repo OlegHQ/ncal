@@ -1,5 +1,5 @@
 BINARY         := ncal
-CRATE          := ncal-cli
+CRATE          := ncal
 CARGO          ?= cargo
 PREFIX         ?= $(HOME)/.local
 BINDIR         ?= $(PREFIX)/bin

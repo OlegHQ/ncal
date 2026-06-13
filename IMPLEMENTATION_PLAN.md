@@ -1,4 +1,4 @@
-# Implementation Plan: notion-calendar-cli
+# Implementation Plan: ncal
 
 **Target:** Rust CLI binary for agent-driven automation of Notion Calendar.
 **API surface:** 85 `/v2` JSON RPC endpoints on `calendar-api.notion.so` (see `research/notion-calendar-api-contract-spec.md`).
@@ -9,7 +9,7 @@
 ## 1. Crate layout
 
 ```
-notion-calendar-cli/
+ncal/
 ├── Cargo.toml              # workspace root
 ├── crates/
 │   ├── ncal-api/           # API client library (no CLI deps)
@@ -44,7 +44,7 @@ notion-calendar-cli/
 │   │   │   │   └── ai.rs           # getNotionInferenceTranscript, getNotionInferenceTranscriptsForUser, runNotionInferenceTranscript, stopNotionInferenceTranscript
 │   │   │   └── error.rs        # API error types, HTTP status mapping
 │   │   └── Cargo.toml
-│   └── ncal-cli/           # CLI binary
+│   └── ncal/               # CLI binary
 │       ├── src/
 │       │   ├── main.rs
 │       │   ├── commands/       # One module per CLI command group
@@ -68,16 +68,16 @@ notion-calendar-cli/
 ### Why two crates
 
 - `ncal-api` is a standalone library — importable by other Rust tools, testable without CLI overhead, clean API surface. Zero CLI dependencies. Async-first.
-- `ncal-cli` is the thin CLI shell — clap parsing, output formatting, exit codes. Depends on `ncal-api`.
+- `ncal` is the thin CLI shell — clap parsing, output formatting, exit codes. Depends on `ncal-api`.
 
 ### Dependency direction (strict)
 
 ```
-ncal-cli → ncal-api → {reqwest, serde, chrono, ...}
+ncal → ncal-api → {reqwest, serde, chrono, ...}
          ↘ {clap, keyring, open, ...}
 ```
 
-`ncal-api` must **never** depend on `ncal-cli`. The API crate exposes `NotionCalendarClient` + typed endpoint methods + all serde types. The CLI crate handles:
+`ncal-api` must **never** depend on `ncal`. The API crate exposes `NotionCalendarClient` + typed endpoint methods + all serde types. The CLI crate handles:
 - Argument parsing and validation
 - Credential resolution (which sources to try, in what order)
 - Output formatting (JSON vs pretty)
@@ -89,7 +89,7 @@ ncal-cli → ncal-api → {reqwest, serde, chrono, ...}
 - `ncal-api/src/endpoints/` — all `pub` (typed wrappers around `rpc()`)
 - `ncal-api/src/client.rs` — `NotionCalendarClient` is `pub`, internal helpers are `pub(crate)`
 - `ncal-api/src/auth.rs` — `CredentialSource` trait and `Credentials` struct are `pub`, implementations are `pub`
-- `ncal-cli/src/commands/` — `pub(crate)` (only visible within the CLI binary)
+- `ncal/src/commands/` — `pub(crate)` (only visible within the CLI binary)
 
 ---
 
@@ -109,7 +109,7 @@ ncal-cli → ncal-api → {reqwest, serde, chrono, ...}
 | `url` | URL construction with query params |
 | `base64` | JWT inspection (check expiry without full decode) |
 
-### ncal-cli
+### ncal
 
 | Crate | Purpose |
 |-------|---------|
@@ -490,7 +490,7 @@ impl CredentialSource for EnvVarSource {
 
 /// Read tokens from OS keychain (previously stored by this CLI).
 pub struct KeychainSource {
-    service: String, // "notion-calendar-cli"
+    service: String, // "ncal"
 }
 
 impl CredentialSource for KeychainSource {
@@ -539,7 +539,7 @@ After obtaining credentials (from any source or after refresh), persist to keych
 
 ```rust
 pub fn store_credentials(creds: &Credentials) -> Result<(), AuthError> {
-    let entry = keyring::Entry::new("notion-calendar-cli", "default")?;
+    let entry = keyring::Entry::new("ncal", "default")?;
     entry.set_password(&serde_json::to_string(creds)?)?;
     Ok(())
 }
@@ -865,10 +865,10 @@ pub enum AuthError {
 }
 ```
 
-**CLI error mapping** (`ncal-cli`) converts library errors to exit codes:
+**CLI error mapping** (`ncal`) converts library errors to exit codes:
 
 ```rust
-// ncal-cli/src/main.rs
+// ncal/src/main.rs
 
 fn exit_code_for(err: &CliError) -> i32 {
     match err {
@@ -916,7 +916,7 @@ Location: `~/.config/ncal/config.toml` (or `$NCAL_CONFIG`)
 
 ```toml
 [auth]
-# Credentials stored in OS keychain under "notion-calendar-cli"
+# Credentials stored in OS keychain under "ncal"
 # Override with NCAL_ACCESS_TOKEN / NCAL_REFRESH_TOKEN env vars
 
 [defaults]
@@ -937,7 +937,7 @@ interval = 60
 
 ### M0: Scaffold (est. 1-2 days)
 
-- [ ] `cargo init` workspace with `ncal-api` and `ncal-cli` crates
+- [ ] `cargo init` workspace with `ncal-api` and `ncal` crates
 - [ ] Add dependencies to `Cargo.toml` files
 - [ ] Implement `Provider`, `SendUpdates`, `EventStatus`, `ResponseStatus` enums
 - [ ] Implement `NotionCalendarClient` with `rpc()` method

@@ -926,24 +926,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "ncal-api"
-version = "0.1.0"
-dependencies = [
- "chrono",
- "keyring",
- "reqwest",
- "rusty-leveldb",
- "serde",
- "serde_json",
- "tempfile",
- "thiserror 2.0.18",
- "tokio",
- "tracing",
- "url",
-]
-
-[[package]]
-name = "ncal-cli"
+name = "ncal"
 version = "0.1.0"
 dependencies = [
  "chrono",
@@ -959,6 +942,23 @@ dependencies = [
  "toml",
  "tracing-subscriber",
  "uuid",
+]
+
+[[package]]
+name = "ncal-api"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "keyring",
+ "reqwest",
+ "rusty-leveldb",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror 2.0.18",
+ "tokio",
+ "tracing",
+ "url",
 ]
 
 [[package]]
